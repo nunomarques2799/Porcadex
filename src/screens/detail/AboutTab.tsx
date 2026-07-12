@@ -1,6 +1,7 @@
-import { Phone, Instagram, MapPin } from 'lucide-react'
+import { Phone, Instagram, MapPin, Globe } from 'lucide-react'
 import type { Person } from '../../types'
 import { formatDate, instagramLink, phoneLink } from '../../lib/utils'
+import { countryName } from '../../data/countries'
 
 export function AboutTab({ person, accent }: { person: Person; accent: string }) {
   const { about } = person
@@ -12,7 +13,8 @@ export function AboutTab({ person, accent }: { person: Person; accent: string })
   if (about.since)
     rows.push({ label: 'Conhecidos desde', value: formatDate(about.since) })
 
-  const hasContact = !!(about.phone || about.instagram || about.location)
+  const country = countryName(person.country)
+  const hasContact = !!(about.phone || about.instagram || about.location || country)
   const isEmpty =
     rows.length === 0 &&
     !hasContact &&
@@ -44,6 +46,17 @@ export function AboutTab({ person, accent }: { person: Person; accent: string })
 
       {hasContact && (
         <div className="contact-list">
+          {country && (
+            <div className="contact" style={{ ['--accent' as string]: accent }}>
+              <span className="contact__icon">
+                <Globe size={18} />
+              </span>
+              <div className="contact__text">
+                <span className="contact__label">País</span>
+                <span className="contact__value">{country}</span>
+              </div>
+            </div>
+          )}
           {about.location && (
             <div className="contact" style={{ ['--accent' as string]: accent }}>
               <span className="contact__icon">

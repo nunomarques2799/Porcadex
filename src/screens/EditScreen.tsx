@@ -1,10 +1,15 @@
 import { useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Camera, Trash2, X, Plus } from 'lucide-react'
+import { ChevronLeft, Camera, Trash2, X, Plus, Crown } from 'lucide-react'
 import { usePeople, emptyDraft, type NewPerson } from '../store/people'
-import { RELATIONSHIPS, getRelationship } from '../data/relationships'
+import { RELATIONSHIPS } from '../data/relationships'
+import { POKE_TYPES, typeTheme } from '../data/pokeTypes'
+import { BALLS, Ball } from '../components/Ball'
+import { LEGENDARY_CATS } from '../data/legendary'
+import { COUNTRIES } from '../data/countries'
 import { STAT_META, type StatKey } from '../types'
 import { Avatar } from '../components/Avatar'
+import { RelBadge } from '../components/RelBadge'
 import { RatingStars } from '../components/RatingStars'
 import { usePhoto } from '../lib/usePhoto'
 import { putPhoto } from '../lib/photoStore'
@@ -24,6 +29,11 @@ export function EditScreen() {
           name: existing.name,
           nickname: existing.nickname ?? '',
           relationship: existing.relationship,
+          types: [...existing.types],
+          country: existing.country,
+          ball: existing.ball,
+          legendary: existing.legendary,
+          legendaryCats: [...existing.legendaryCats],
           avatarId: existing.avatarId,
           photoIds: existing.photoIds,
           rating: existing.rating,
@@ -43,12 +53,29 @@ export function EditScreen() {
   const fileRef = useRef<HTMLInputElement>(null)
   const storedAvatar = usePhoto(draft.avatarId)
 
-  const rel = getRelationship(draft.relationship)
+  const theme = typeTheme(draft.types[0])
   const set = (patch: Partial<NewPerson>) => setDraft((d) => ({ ...d, ...patch }))
   const setAbout = (patch: Partial<NewPerson['about']>) =>
     setDraft((d) => ({ ...d, about: { ...d.about, ...patch } }))
   const setStat = (key: StatKey, value: number) =>
     setDraft((d) => ({ ...d, stats: { ...d.stats, [key]: value } }))
+
+  const toggleType = (key: string) =>
+    setDraft((d) => {
+      if (d.types.includes(key)) {
+        return { ...d, types: d.types.filter((t) => t !== key) }
+      }
+      if (d.types.length < 2) return { ...d, types: [...d.types, key] }
+      return { ...d, types: [d.types[0], key] } // replace secondary
+    })
+
+  const toggleCat = (key: string) =>
+    setDraft((d) => ({
+      ...d,
+      legendaryCats: d.legendaryCats.includes(key)
+        ? d.legendaryCats.filter((c) => c !== key)
+        : [...d.legendaryCats, key],
+    }))
 
   const pickAvatar = async (file: File | undefined) => {
     if (!file || !file.type.startsWith('image/')) return
@@ -93,17 +120,13 @@ export function EditScreen() {
   return (
     <div className="screen edit">
       <header className="edit__bar">
-        <button
-          className="iconbtn"
-          onClick={() => navigate(-1)}
-          aria-label="Voltar"
-        >
+        <button className="iconbtn" onClick={() => navigate(-1)} aria-label="Voltar">
           <ChevronLeft size={24} />
         </button>
         <h1 className="edit__title">{isEdit ? 'Editar' : 'Nova pessoa'}</h1>
         <button
           className="btn btn--primary btn--sm"
-          style={{ background: rel.accent }}
+          style={{ background: theme.accent }}
           onClick={save}
           disabled={!draft.name.trim()}
         >
@@ -122,13 +145,9 @@ export function EditScreen() {
             {avatarSrc ? (
               <img src={avatarSrc} alt="" className="avatar-picker__img" />
             ) : (
-              <Avatar
-                name={draft.name || '?'}
-                relationship={draft.relationship}
-                size={96}
-              />
+              <Avatar name={draft.name || '?'} type={draft.types[0]} size={96} />
             )}
-            <span className="avatar-picker__badge" style={{ background: rel.accent }}>
+            <span className="avatar-picker__badge" style={{ background: theme.accent }}>
               <Camera size={16} />
             </span>
           </button>
@@ -166,40 +185,136 @@ export function EditScreen() {
           />
         </div>
 
-        {/* Relationship */}
+        {/* Relationship: Beijo / Sexo */}
         <div className="field">
-          <label>Tipo de relação</label>
-          <div className="rel-grid">
+          <label>O que rolou</label>
+          <div className="rel-picker">
             {RELATIONSHIPS.map((r) => {
               const active = draft.relationship === r.key
               return (
                 <button
                   key={r.key}
                   type="button"
-                  className={'rel-chip' + (active ? ' rel-chip--active' : '')}
+                  className={'rel-pick' + (active ? ' is-active' : '')}
                   onClick={() => set({ relationship: r.key })}
                   style={
                     active
-                      ? { background: r.accent, borderColor: r.accent, color: '#fff' }
-                      : { borderColor: r.bg, background: r.bg, color: r.accent }
+                      ? {
+                          borderColor: r.color,
+                          background: `color-mix(in srgb, ${r.color} 12%, transparent)`,
+                        }
+                      : undefined
                   }
                 >
-                  {r.label}
+                  <RelBadge relationship={r.key} />
                 </button>
               )
             })}
           </div>
         </div>
 
+        {/* Pokémon types */}
+        <div className="field">
+          <label>Tipo(s) — escolhe até 2</label>
+          <div className="type-grid">
+            {POKE_TYPES.map((t) => {
+              const idx = draft.types.indexOf(t.key)
+              const active = idx !== -1
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  className={'type-chip' + (active ? ' is-active' : '')}
+                  onClick={() => toggleType(t.key)}
+                  style={{
+                    background: active ? t.color : 'transparent',
+                    borderColor: t.color,
+                    color: active ? '#fff' : t.color,
+                  }}
+                >
+                  {t.label}
+                  {idx === 0 && <span className="type-chip__primary">1º</span>}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Country */}
+        <div className="field">
+          <label htmlFor="country">País</label>
+          <select
+            id="country"
+            className="input"
+            value={draft.country ?? ''}
+            onChange={(e) => set({ country: e.target.value || undefined })}
+          >
+            <option value="">— Escolher país —</option>
+            {COUNTRIES.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Poké Ball */}
+        <div className="field">
+          <label>Pokébola</label>
+          <div className="ball-grid">
+            {BALLS.map((b) => (
+              <button
+                key={b.key}
+                type="button"
+                className={'ball-pick' + (draft.ball === b.key ? ' is-active' : '')}
+                onClick={() => set({ ball: b.key })}
+                style={draft.ball === b.key ? { borderColor: theme.accent } : undefined}
+                aria-label={b.label}
+                title={b.label}
+              >
+                <Ball ball={b.key} size={40} />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Legendary */}
+        <div className="field">
+          <button
+            type="button"
+            className={'legend-toggle' + (draft.legendary ? ' is-active' : '')}
+            onClick={() => set({ legendary: !draft.legendary })}
+          >
+            <span className="legend-toggle__label">
+              <Crown size={18} /> Lendária
+            </span>
+            <span className={'switch' + (draft.legendary ? ' switch--on' : '')}>
+              <span className="switch__dot" />
+            </span>
+          </button>
+          {draft.legendary && (
+            <div className="cat-grid">
+              {LEGENDARY_CATS.map((c) => {
+                const active = draft.legendaryCats.includes(c.key)
+                return (
+                  <button
+                    key={c.key}
+                    type="button"
+                    className={'cat-chip' + (active ? ' is-active' : '')}
+                    onClick={() => toggleCat(c.key)}
+                  >
+                    {c.label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
         {/* Overall rating */}
         <div className="field">
           <label>Avaliação geral</label>
-          <RatingStars
-            value={draft.rating}
-            size={30}
-            color={rel.accent}
-            onChange={(v) => set({ rating: v })}
-          />
+          <RatingStars value={draft.rating} size={30} color={theme.accent} onChange={(v) => set({ rating: v })} />
         </div>
 
         {/* Stats */}
@@ -220,9 +335,7 @@ export function EditScreen() {
                   max={100}
                   value={draft.stats[s.key]}
                   onChange={(e) => setStat(s.key, Number(e.target.value))}
-                  style={{
-                    accentColor: statColor(draft.stats[s.key]),
-                  }}
+                  style={{ accentColor: statColor(draft.stats[s.key]) }}
                   aria-label={s.label}
                 />
               </div>
@@ -273,7 +386,7 @@ export function EditScreen() {
             className="input"
             value={draft.about.location ?? ''}
             onChange={(e) => setAbout({ location: e.target.value })}
-            placeholder="Cidade, país…"
+            placeholder="Cidade…"
             autoComplete="off"
           />
         </div>
@@ -324,13 +437,13 @@ export function EditScreen() {
                   addTrait()
                 }
               }}
-              placeholder="Ex: Boa ouvinte"
+              placeholder="Ex: Olhar matador"
               autoComplete="off"
             />
             <button
               type="button"
               className="iconbtn iconbtn--filled"
-              style={{ background: rel.accent }}
+              style={{ background: theme.accent }}
               onClick={addTrait}
               aria-label="Adicionar característica"
             >
@@ -342,12 +455,7 @@ export function EditScreen() {
               {draft.traits.map((t) => (
                 <span className="trait trait--removable" key={t}>
                   {t}
-                  <button
-                    onClick={() =>
-                      set({ traits: draft.traits.filter((x) => x !== t) })
-                    }
-                    aria-label={`Remover ${t}`}
-                  >
+                  <button onClick={() => set({ traits: draft.traits.filter((x) => x !== t) })} aria-label={`Remover ${t}`}>
                     <X size={13} />
                   </button>
                 </span>

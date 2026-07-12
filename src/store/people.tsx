@@ -27,6 +27,25 @@ export type NewPerson = Omit<Person, 'id' | 'number' | 'createdAt'>
 
 const PeopleContext = createContext<PeopleContextValue | null>(null)
 
+/** Backfill defaults so people saved under an older schema still render. */
+function normalize(raw: Partial<Person>): Person {
+  return {
+    ...(raw as Person),
+    types:
+      Array.isArray(raw.types) && raw.types.length ? raw.types : ['normal'],
+    ball: raw.ball ?? 'poke',
+    legendary: raw.legendary ?? false,
+    legendaryCats: Array.isArray(raw.legendaryCats) ? raw.legendaryCats : [],
+    relationship: raw.relationship === 'sexo' ? 'sexo' : 'beijo',
+    photoIds: Array.isArray(raw.photoIds) ? raw.photoIds : [],
+    stats: raw.stats ?? { ...EMPTY_STATS },
+    about: raw.about ?? {},
+    traits: Array.isArray(raw.traits) ? raw.traits : [],
+    moments: Array.isArray(raw.moments) ? raw.moments : [],
+    favorite: raw.favorite ?? false,
+  }
+}
+
 function load(): Person[] {
   // Pure read (no writes) so it's safe under React StrictMode's double-invoke.
   // The presence of the key itself marks that the app has run before, so we
@@ -34,7 +53,8 @@ function load(): Person[] {
   const raw = localStorage.getItem(STORAGE_KEY)
   if (raw !== null) {
     try {
-      return JSON.parse(raw) as Person[]
+      const parsed = JSON.parse(raw) as Partial<Person>[]
+      return Array.isArray(parsed) ? parsed.map(normalize) : []
     } catch {
       return []
     }
@@ -113,7 +133,12 @@ export function emptyDraft(): NewPerson {
   return {
     name: '',
     nickname: '',
-    relationship: 'amigo',
+    relationship: 'beijo',
+    types: [],
+    country: undefined,
+    ball: 'poke',
+    legendary: false,
+    legendaryCats: [],
     avatarId: undefined,
     photoIds: [],
     rating: 0,

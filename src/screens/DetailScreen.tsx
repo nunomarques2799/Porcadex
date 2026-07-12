@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { ChevronLeft, Heart, Pencil } from 'lucide-react'
+import { ChevronLeft, Heart, Pencil, Crown } from 'lucide-react'
 import { usePeople } from '../store/people'
-import { getRelationship } from '../data/relationships'
+import { typeTheme } from '../data/pokeTypes'
+import { legendaryLabel } from '../data/legendary'
 import { STAT_META } from '../types'
 import { formatNumber } from '../lib/utils'
 import { Avatar } from '../components/Avatar'
 import { TypeBadge } from '../components/TypeBadge'
+import { RelBadge } from '../components/RelBadge'
+import { Ball } from '../components/Ball'
 import { RatingStars } from '../components/RatingStars'
 import { StatBar } from '../components/StatBar'
 import { AboutTab } from './detail/AboutTab'
@@ -41,15 +44,13 @@ export function DetailScreen() {
     )
   }
 
-  const rel = getRelationship(person.relationship)
+  const theme = typeTheme(person.types[0])
 
   return (
-    <div className="detail" style={{ ['--accent' as string]: rel.accent }}>
+    <div className="detail" style={{ ['--accent' as string]: theme.accent }}>
       <div
-        className="detail__header"
-        style={{
-          background: `linear-gradient(150deg, ${rel.gradient[0]}, ${rel.gradient[1]})`,
-        }}
+        className={'detail__header' + (person.legendary ? ' detail__header--legendary' : '')}
+        style={{ background: theme.gradient }}
       >
         <div className="detail__bar">
           <button
@@ -65,11 +66,7 @@ export function DetailScreen() {
               onClick={() => toggleFavorite(person.id)}
               aria-label={person.favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
             >
-              <Heart
-                size={22}
-                fill={person.favorite ? '#fff' : 'none'}
-                stroke="#fff"
-              />
+              <Heart size={22} fill={person.favorite ? '#fff' : 'none'} stroke="#fff" />
             </button>
             <Link
               to={`/person/${person.id}/edit`}
@@ -87,29 +84,30 @@ export function DetailScreen() {
               <h1 className="detail__name">{person.name}</h1>
               <span className="detail__number">{formatNumber(person.number)}</span>
             </div>
-            {person.nickname && (
-              <p className="detail__nick">“{person.nickname}”</p>
-            )}
+            {person.nickname && <p className="detail__nick">“{person.nickname}”</p>}
             <div className="detail__badges">
-              <TypeBadge relationship={person.relationship} variant="light" />
+              {person.types.map((t) => (
+                <TypeBadge key={t} type={t} />
+              ))}
+              <RelBadge relationship={person.relationship} variant="light" />
             </div>
+            {person.legendary && (
+              <div className="legend-ribbon">
+                <Crown size={14} />
+                <span>Lendária</span>
+                {person.legendaryCats.map((c) => (
+                  <span key={c} className="legend-ribbon__cat">
+                    {legendaryLabel(c)}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           <div className="detail__avatar">
-            <Avatar
-              name={person.name}
-              relationship={person.relationship}
-              avatarId={person.avatarId}
-              size={116}
-              ring
-            />
+            <Avatar name={person.name} type={person.types[0]} avatarId={person.avatarId} size={116} ring />
+            <Ball ball={person.ball} size={40} className="detail__ball" />
           </div>
         </div>
-
-        <svg className="detail__ball-bg" viewBox="0 0 100 100" aria-hidden="true">
-          <circle cx="50" cy="50" r="46" fill="none" stroke="#fff" strokeWidth="4" />
-          <line x1="4" y1="50" x2="96" y2="50" stroke="#fff" strokeWidth="4" />
-          <circle cx="50" cy="50" r="13" fill="none" stroke="#fff" strokeWidth="4" />
-        </svg>
       </div>
 
       <div className="sheet">
@@ -121,31 +119,31 @@ export function DetailScreen() {
               aria-selected={tab === t.key}
               className={'tabs__tab' + (tab === t.key ? ' tabs__tab--active' : '')}
               onClick={() => setTab(t.key)}
-              style={tab === t.key ? { color: rel.accent } : undefined}
+              style={tab === t.key ? { color: theme.accent } : undefined}
             >
               {t.label}
               {tab === t.key && (
-                <span className="tabs__underline" style={{ background: rel.accent }} />
+                <span className="tabs__underline" style={{ background: theme.accent }} />
               )}
             </button>
           ))}
         </div>
 
         <div className="sheet__body">
-          {tab === 'sobre' && <AboutTab person={person} accent={rel.accent} />}
+          {tab === 'sobre' && <AboutTab person={person} accent={theme.accent} />}
           {tab === 'stats' && (
             <div className="stats-list">
               <div className="stats-overall">
                 <span>Avaliação geral</span>
-                <RatingStars value={person.rating} size={22} color={rel.accent} />
+                <RatingStars value={person.rating} size={22} color={theme.accent} />
               </div>
               {STAT_META.map((s) => (
                 <StatBar key={s.key} label={s.label} value={person.stats[s.key]} />
               ))}
             </div>
           )}
-          {tab === 'momentos' && <MomentsTab person={person} accent={rel.accent} />}
-          {tab === 'fotos' && <PhotosTab person={person} accent={rel.accent} />}
+          {tab === 'momentos' && <MomentsTab person={person} accent={theme.accent} />}
+          {tab === 'fotos' && <PhotosTab person={person} accent={theme.accent} />}
         </div>
       </div>
     </div>

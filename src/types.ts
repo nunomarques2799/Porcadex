@@ -25,7 +25,12 @@ export interface Person {
   number: number // auto-incrementing "Pokédex" number
   name: string
   nickname?: string
-  relationship: string // key into RELATIONSHIPS
+  relationship: string // 'beijo' | 'sexo'
+  types: string[] // Pokémon-style types, 1–2 keys into POKE_TYPES
+  country?: string // numeric ISO id matching the world map
+  ball: string // key into BALLS
+  legendary: boolean
+  legendaryCats: string[] // keys into LEGENDARY_CATS
   /** Id of the main photo stored in IndexedDB, if any. */
   avatarId?: string
   /** Ids of gallery photos stored in IndexedDB. */
