@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ChevronLeft, Heart, Flame, Crown, Globe, Star, Zap, Award, ChevronRight } from 'lucide-react'
+import { ChevronLeft, Heart, Flame, Crown, Globe, Star, Zap, Award, ChevronRight, Maximize2 } from 'lucide-react'
 import { usePeople } from '../store/people'
 import { useHomeCountry } from '../lib/settings'
 import { COUNTRIES, countryName } from '../data/countries'
@@ -9,6 +9,7 @@ import { LEGENDARY_CATS } from '../data/legendary'
 import { totalXp, levelInfo } from '../data/xp'
 import { badgeStates } from '../data/badges'
 import { WorldMap } from '../components/WorldMap'
+import { MapModal } from '../components/MapModal'
 
 export function StatsScreen() {
   const { people } = usePeople()
@@ -64,6 +65,7 @@ export function StatsScreen() {
   const lvl = useMemo(() => levelInfo(totalXp(people, home)), [people, home])
   const badges = useMemo(() => badgeStates({ people, home }), [people, home])
   const badgesEarned = badges.filter((b) => b.earned).length
+  const [mapOpen, setMapOpen] = useState(false)
 
   return (
     <div className="screen stats">
@@ -118,10 +120,19 @@ export function StatsScreen() {
         <section className="stats-card">
           <div className="stats-card__head">
             <h2>Mapa-múndi</h2>
-            <span className="stats-card__sub">{s.countries} de {COUNTRIES.length} países</span>
+            <button className="map-expand" onClick={() => setMapOpen(true)}>
+              <Maximize2 size={15} /> Expandir
+            </button>
           </div>
-          <WorldMap visited={s.visited} homeId={home} accent="#EC5A96" />
+          <button
+            className="map-tap"
+            onClick={() => setMapOpen(true)}
+            aria-label="Expandir mapa"
+          >
+            <WorldMap visited={s.visited} homeId={home} accent="#EC5A96" />
+          </button>
           <div className="map-legend">
+            <span className="stats-card__sub">{s.countries} de {COUNTRIES.length} países</span>
             <span><i style={{ background: '#F5B23E' }} /> O teu país</span>
             <span><i style={{ background: '#EC5A96' }} /> Apanhados</span>
             <span className="map-legend__nat">Nacional {s.nacional} · Internacional {s.internacional}</span>
@@ -201,6 +212,15 @@ export function StatsScreen() {
           </section>
         )}
       </div>
+
+      {mapOpen && (
+        <MapModal
+          visited={s.visited}
+          homeId={home}
+          accent="#EC5A96"
+          onClose={() => setMapOpen(false)}
+        />
+      )}
     </div>
   )
 }

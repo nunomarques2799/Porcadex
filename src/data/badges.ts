@@ -12,6 +12,12 @@ import {
   Star,
   Circle,
   Zap,
+  Repeat,
+  Activity,
+  Rocket,
+  Compass,
+  Medal,
+  Gem,
 } from 'lucide-react'
 import type { Person } from '../types'
 import { totalXp, levelInfo } from './xp'
@@ -40,6 +46,14 @@ const distinctCountries = (p: Person[]) =>
 const distinctTypes = (p: Person[]) => new Set(p.flatMap((x) => x.types)).size
 const distinctBalls = (p: Person[]) => new Set(p.map((x) => x.ball)).size
 const legendaries = (p: Person[]) => p.filter((x) => x.legendary).length
+const distinctLegendCats = (p: Person[]) =>
+  new Set(p.filter((x) => x.legendary).flatMap((x) => x.legendaryCats)).size
+const encounters = (x: Person) =>
+  x.moments.filter((m) => m.kind === 'beijo' || m.kind === 'sexo').length
+const maxEncounters = (p: Person[]) =>
+  p.reduce((m, x) => Math.max(m, encounters(x)), 0)
+const totalEncounters = (p: Person[]) =>
+  p.reduce((s, x) => s + encounters(x), 0)
 
 export const BADGES: BadgeDef[] = [
   {
@@ -175,6 +189,132 @@ export const BADGES: BadgeDef[] = [
     icon: Zap,
     color: '#F2C21C',
     target: 5,
+    value: (c) => levelInfo(totalXp(c.people, c.home)).level,
+  },
+  {
+    id: 'second-round',
+    title: 'Segunda Ronda',
+    desc: 'Repete com a mesma pessoa (2 momentos)',
+    icon: Repeat,
+    color: '#EC5A96',
+    target: 2,
+    value: (c) => maxEncounters(c.people),
+  },
+  {
+    id: 'regular',
+    title: 'Cliente Habitual',
+    desc: '5 momentos com a mesma pessoa',
+    icon: Repeat,
+    color: '#E23B4E',
+    target: 5,
+    value: (c) => maxEncounters(c.people),
+  },
+  {
+    id: 'marathon',
+    title: 'Maratonista',
+    desc: '25 momentos (beijo/sexo) no total',
+    icon: Activity,
+    color: '#C22E28',
+    target: 25,
+    value: (c) => totalEncounters(c.people),
+  },
+  {
+    id: 'kisser-25',
+    title: 'Beijoqueiro',
+    desc: '25 beijos',
+    icon: Heart,
+    color: '#D6417E',
+    target: 25,
+    value: (c) => beijos(c.people),
+  },
+  {
+    id: 'insatiable',
+    title: 'Insaciável',
+    desc: '50 vezes sexo',
+    icon: Flame,
+    color: '#9E241F',
+    target: 50,
+    value: (c) => sexo(c.people),
+  },
+  {
+    id: 'people-50',
+    title: 'Estrela do Rock',
+    desc: '50 pessoas na coleção',
+    icon: Rocket,
+    color: '#4E86EB',
+    target: 50,
+    value: (c) => c.people.length,
+  },
+  {
+    id: 'explorer',
+    title: 'Explorador',
+    desc: 'Pessoas de 5 países diferentes',
+    icon: Compass,
+    color: '#2FAE82',
+    target: 5,
+    value: (c) => distinctCountries(c.people),
+  },
+  {
+    id: 'jetsetter',
+    title: 'Cidadão do Mundo',
+    desc: '10 pessoas internacionais',
+    icon: Plane,
+    color: '#1FA6AF',
+    target: 10,
+    value: (c) => intl(c.people, c.home),
+  },
+  {
+    id: 'pantheon',
+    title: 'Panteão',
+    desc: 'Lendárias das 6 categorias',
+    icon: Trophy,
+    color: '#E0A62A',
+    target: 6,
+    value: (c) => distinctLegendCats(c.people),
+  },
+  {
+    id: 'olympus',
+    title: 'Olimpo',
+    desc: '5 lendárias',
+    icon: Crown,
+    color: '#B8860B',
+    target: 5,
+    value: (c) => legendaries(c.people),
+  },
+  {
+    id: 'favorites',
+    title: 'Coração de Ouro',
+    desc: '5 favoritos',
+    icon: Medal,
+    color: '#EC5A96',
+    target: 5,
+    value: (c) => c.people.filter((p) => p.favorite).length,
+  },
+  {
+    id: 'connoisseur',
+    title: 'Bom Gosto',
+    desc: '3 pessoas com 5 estrelas',
+    icon: Gem,
+    color: '#F5B23E',
+    target: 3,
+    value: (c) => c.people.filter((p) => p.rating >= 5).length,
+  },
+  {
+    id: 'ball-master',
+    title: 'Mestre das Bolas',
+    desc: 'Usa as 10 pokébolas',
+    icon: Circle,
+    color: '#6A2C86',
+    target: 10,
+    value: (c) => distinctBalls(c.people),
+  },
+  {
+    id: 'level-10',
+    title: 'Lenda Viva',
+    desc: 'Chega ao nível 10',
+    icon: Zap,
+    color: '#E0A62A',
+    target: 10,
     value: (c) => levelInfo(totalXp(c.people, c.home)).level,
   },
 ]

@@ -11,12 +11,15 @@ export type StatKey =
 
 export type Stats = Record<StatKey, number> // each 0–100
 
-/** A memorable moment in the relationship (the "moves" / timeline tab). */
+/** A memorable moment in the relationship (the "moves" / timeline tab).
+ *  `kind` records whether this specific encounter was a kiss or sex — the same
+ *  person can have many. */
 export interface Moment {
   id: string
   title: string
   date?: string // ISO yyyy-mm-dd
   note?: string
+  kind?: 'beijo' | 'sexo'
 }
 
 /** A single entry in the Porcadex — one person you have a relationship with. */

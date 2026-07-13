@@ -368,7 +368,7 @@ export function EditScreen() {
             />
           </div>
           <div className="field">
-            <label htmlFor="since">Desde</label>
+            <label htmlFor="since">Apanhado/a a</label>
             <input
               id="since"
               className="input"

@@ -11,7 +11,7 @@ export function AboutTab({ person, accent }: { person: Person; accent: string })
   if (about.birthday)
     rows.push({ label: 'Aniversário', value: formatDate(about.birthday) })
   if (about.since)
-    rows.push({ label: 'Conhecidos desde', value: formatDate(about.since) })
+    rows.push({ label: 'Apanhado/a a', value: formatDate(about.since) })
 
   const country = countryName(person.country)
   const hasContact = !!(about.phone || about.instagram || about.location || country)
