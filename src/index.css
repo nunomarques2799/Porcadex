@@ -1638,6 +1638,439 @@ select.input {
   color: #c2cbe1;
 }
 
+/* ---------- Level & XP ----------------------------------------- */
+
+.level-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f2c21c, #e0a62a);
+  color: #4a3708;
+  font-size: 12px;
+  font-weight: 900;
+}
+.list-header__subtitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.level-card {
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: var(--shadow-soft);
+}
+.level-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.level-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 900;
+  font-size: 17px;
+  color: var(--ink);
+}
+.level-card__badge svg {
+  color: #e0a62a;
+}
+.level-card__xp {
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.level-card__bar {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+.level-card__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f2c21c, #e0a62a);
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.level-card__next {
+  display: block;
+  margin-top: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* ---------- Link card ------------------------------------------ */
+
+.link-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  color: var(--ink);
+  transition: transform 0.12s ease;
+}
+.link-card:active {
+  transform: scale(0.98);
+}
+.link-card__icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  color: #fff;
+  flex-shrink: 0;
+}
+.link-card__text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.link-card__text b {
+  font-size: 15px;
+  font-weight: 800;
+}
+.link-card__text small {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.link-card__chevron {
+  color: var(--muted);
+}
+
+/* ---------- Badges --------------------------------------------- */
+
+.badges__summary {
+  margin: 4px 2px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.badges__summary b {
+  color: var(--ink);
+  font-weight: 900;
+}
+.badge-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 24px);
+}
+.badge-card {
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 16px 14px;
+  box-shadow: var(--shadow-soft);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0.72;
+}
+.badge-card--earned {
+  opacity: 1;
+}
+.badge-card__icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--line);
+  color: #fff;
+  margin-bottom: 10px;
+}
+.badge-card:not(.badge-card--earned) .badge-card__icon {
+  color: var(--muted);
+}
+.badge-card__status {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  color: var(--muted);
+  border: 2px solid var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.badge-card--earned .badge-card__status {
+  background: #2fae82;
+  color: #fff;
+}
+.badge-card__title {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 800;
+}
+.badge-card__desc {
+  margin: 3px 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  line-height: 1.35;
+}
+.badge-card__bar {
+  width: 100%;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+  margin-top: auto;
+}
+.badge-card__fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.badge-card__count {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Compare -------------------------------------------- */
+
+.cmp-slots {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0 6px;
+}
+.cmp-slot {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 10px;
+  border-radius: 18px;
+  border: 2px dashed var(--line-strong);
+  background: var(--surface);
+  min-height: 130px;
+  justify-content: center;
+  transition: transform 0.12s ease;
+}
+.cmp-slot:active {
+  transform: scale(0.97);
+}
+.cmp-slot__add {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: var(--line);
+  color: var(--muted);
+}
+.cmp-slot__name {
+  font-weight: 800;
+  font-size: 14px;
+  text-align: center;
+}
+.cmp-slot__num {
+  font-size: 12px;
+  font-weight: 800;
+}
+.cmp-vs {
+  font-weight: 900;
+  font-size: 13px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.cmp-result {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 8px;
+}
+.cmp-tally {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 12px 16px;
+  box-shadow: var(--shadow-soft);
+}
+.cmp-tally__side {
+  font-size: 26px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.cmp-tally__mid {
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--ink);
+}
+.cmp-tally__mid small {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.cmp-overall {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+}
+.cmp-overall__label {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.cmp-overall .stars:first-child {
+  justify-content: flex-start;
+}
+.cmp-overall .stars:last-child {
+  justify-content: flex-end;
+}
+.cmp-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.cmp-stat__label {
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--ink-soft);
+}
+.cmp-stat__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cmp-stat__val {
+  width: 26px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.cmp-stat__val.is-win {
+  color: var(--ink);
+}
+.cmp-bars {
+  flex: 1;
+  display: flex;
+  gap: 3px;
+  height: 12px;
+}
+.cmp-bars__side {
+  flex: 1;
+  display: flex;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.cmp-bars__side--a {
+  justify-content: flex-end;
+}
+.cmp-bars__fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+/* ---------- Person picker sheet -------------------------------- */
+
+.picker {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.picker__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 12, 20, 0.5);
+  backdrop-filter: blur(2px);
+}
+.picker__sheet {
+  position: relative;
+  width: 100%;
+  max-width: var(--maxw);
+  max-height: 80vh;
+  background: var(--bg);
+  border-radius: 24px 24px 0 0;
+  padding: 16px 16px calc(env(safe-area-inset-bottom) + 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: sheet-up 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+.picker__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.picker__head h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+.picker__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.picker__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 14px;
+  transition: background 0.12s ease;
+}
+.picker__item:active {
+  background: var(--line);
+}
+.picker__item-name {
+  flex: 1;
+  text-align: left;
+  font-weight: 800;
+  font-size: 15px;
+}
+.picker__item-num {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+}
+
 /* ---------- Utilities ------------------------------------------ */
 
 .spin {

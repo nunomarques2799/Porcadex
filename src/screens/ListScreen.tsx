@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Plus, Heart, X, Sun, Moon, BarChart3, Crown } from 'lucide-react'
+import { Search, Plus, Heart, X, Sun, Moon, BarChart3, Crown, ArrowLeftRight } from 'lucide-react'
 import { usePeople } from '../store/people'
 import { useTheme } from '../lib/theme'
 import { useHomeCountry } from '../lib/settings'
 import { countryName } from '../data/countries'
+import { totalXp, levelInfo } from '../data/xp'
 import { PersonCard } from '../components/PersonCard'
 
 type Dex = 'todos' | 'nacional' | 'internacional'
@@ -14,6 +15,7 @@ export function ListScreen() {
   const { people } = usePeople()
   const { theme, toggle } = useTheme()
   const [home] = useHomeCountry()
+  const level = levelInfo(totalXp(people, home)).level
   const [query, setQuery] = useState('')
   const [dex, setDex] = useState<Dex>('todos')
   const [quick, setQuick] = useState<Quick>('todos')
@@ -47,10 +49,14 @@ export function ListScreen() {
               Porcadex
             </h1>
             <p className="list-header__subtitle">
-              {people.length} {people.length === 1 ? 'pessoa' : 'pessoas'} na coleção
+              <span className="level-chip">Nível {level}</span>
+              {people.length} {people.length === 1 ? 'pessoa' : 'pessoas'}
             </p>
           </div>
           <div className="list-header__actions">
+            <Link to="/compare" className="theme-toggle" aria-label="Comparar">
+              <ArrowLeftRight size={20} />
+            </Link>
             <Link to="/stats" className="theme-toggle" aria-label="Estatísticas">
               <BarChart3 size={20} />
             </Link>

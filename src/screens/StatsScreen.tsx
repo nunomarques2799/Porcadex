@@ -1,11 +1,13 @@
 import { useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Heart, Flame, Crown, Globe, Star } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom'
+import { ChevronLeft, Heart, Flame, Crown, Globe, Star, Zap, Award, ChevronRight } from 'lucide-react'
 import { usePeople } from '../store/people'
 import { useHomeCountry } from '../lib/settings'
 import { COUNTRIES, countryName } from '../data/countries'
 import { POKE_TYPES, getType } from '../data/pokeTypes'
 import { LEGENDARY_CATS } from '../data/legendary'
+import { totalXp, levelInfo } from '../data/xp'
+import { badgeStates } from '../data/badges'
 import { WorldMap } from '../components/WorldMap'
 
 export function StatsScreen() {
@@ -59,6 +61,10 @@ export function StatsScreen() {
     }
   }, [people, home])
 
+  const lvl = useMemo(() => levelInfo(totalXp(people, home)), [people, home])
+  const badges = useMemo(() => badgeStates({ people, home }), [people, home])
+  const badgesEarned = badges.filter((b) => b.earned).length
+
   return (
     <div className="screen stats">
       <header className="edit__bar">
@@ -70,6 +76,34 @@ export function StatsScreen() {
       </header>
 
       <div className="stats__body">
+        {/* Level / XP */}
+        <section className="level-card">
+          <div className="level-card__top">
+            <span className="level-card__badge">
+              <Zap size={18} /> Nível {lvl.level}
+            </span>
+            <span className="level-card__xp">{lvl.xp} XP</span>
+          </div>
+          <div className="level-card__bar">
+            <div className="level-card__fill" style={{ width: `${lvl.progress * 100}%` }} />
+          </div>
+          <span className="level-card__next">
+            Faltam <b>{lvl.toNext} XP</b> para o nível {lvl.level + 1}
+          </span>
+        </section>
+
+        {/* Badges link */}
+        <Link to="/badges" className="link-card">
+          <span className="link-card__icon" style={{ background: '#E0A62A' }}>
+            <Award size={20} />
+          </span>
+          <span className="link-card__text">
+            <b>Badges</b>
+            <small>{badgesEarned} de {badges.length} desbloqueados</small>
+          </span>
+          <ChevronRight size={20} className="link-card__chevron" />
+        </Link>
+
         {/* Summary tiles */}
         <div className="tiles">
           <Tile value={s.total} label="Total" icon={<Star size={16} />} color="#5C90F0" />

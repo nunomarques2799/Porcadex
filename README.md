@@ -19,6 +19,11 @@ instalada no ecrã inicial como uma app.
 - ⚪ **Pokébola** — escolhe a bola de cada pessoa (Poké, Great, Ultra, Master,
   Love…).
 - 👑 **Lendárias** — marca pessoas como lendárias, com categorias.
+- ⚔️ **Comparar** — escolhe 2 pessoas e vê os stats lado a lado, com vencedor.
+- ⚡ **Níveis & XP** — cada pessoa dá XP (beijo < sexo < internacional <
+  lendária); sobes de nível à medida que a coleção cresce.
+- 🏅 **Badges** — secção própria com todos os badges (obtidos e por obter) e o
+  progresso que falta para cada um.
 - 📊 **Estatísticas** — ecrã próprio com totais, médias e um **mapa-múndi** que
   ilumina os países da tua coleção.
 - 👤 **Ficha da pessoa** — cabeçalho colorido com foto e separadores:
@@ -85,6 +90,8 @@ src/
 - **Relações (Beijo/Sexo)**: `src/data/relationships.ts`
 - **Pokébolas**: `src/components/Ball.tsx`
 - **Categorias de lendária**: `src/data/legendary.ts`
+- **XP e níveis**: `src/data/xp.ts`
+- **Badges / desafios**: `src/data/badges.ts`
 - **Estatísticas (stats)**: `src/types.ts` (`STAT_META`)
 - **Dados de exemplo** (1ª utilização): `src/data/seed.ts`
 
