@@ -6,6 +6,7 @@ import { DetailScreen } from './screens/DetailScreen'
 import { EditScreen } from './screens/EditScreen'
 import { StatsScreen } from './screens/StatsScreen'
 import { CompareScreen } from './screens/CompareScreen'
+import { BattleScreen } from './screens/BattleScreen'
 import { BadgesScreen } from './screens/BadgesScreen'
 import { MeScreen } from './screens/MeScreen'
 import { FriendsScreen } from './screens/FriendsScreen'
@@ -36,6 +37,7 @@ function Gate() {
             <Route path="/" element={<ListScreen />} />
             <Route path="/stats" element={<StatsScreen />} />
             <Route path="/compare" element={<CompareScreen />} />
+            <Route path="/battle" element={<BattleScreen />} />
             <Route path="/badges" element={<BadgesScreen />} />
             <Route path="/me" element={<MeScreen />} />
             <Route path="/friends" element={<FriendsScreen />} />

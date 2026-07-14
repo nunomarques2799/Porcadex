@@ -6,6 +6,7 @@
 // com o perfil. Serve de fundação para as batalhas entre pessoas no futuro.
 
 import type { Person, StatKey } from '../types'
+import { personLevelInfo, personXp } from './xp'
 
 /* ------------------------------------------------------------------ */
 /* Stats de batalha                                                    */
@@ -332,4 +333,239 @@ export function personMoves(person: Person): Move[] {
   shuffle(TYPE_MOVEPOOLS.normal, rnd).forEach(add)
 
   return chosen.slice(0, 4)
+}
+
+/* ------------------------------------------------------------------ */
+/* Vantagens de tipo (tabela de eficácia)                              */
+/* ------------------------------------------------------------------ */
+
+/** Multiplicadores tipo-atacante → tipo-defensor. Só se listam os valores
+ *  diferentes de 1 (2 = super eficaz, 0.5 = pouco eficaz, 0 = sem efeito).
+ *  Tabela padrão do Pokémon (Gen 6+). */
+const TYPE_CHART: Record<string, Record<string, number>> = {
+  normal: { rock: 0.5, ghost: 0, steel: 0.5 },
+  fire: { fire: 0.5, water: 0.5, grass: 2, ice: 2, bug: 2, rock: 0.5, dragon: 0.5, steel: 2 },
+  water: { fire: 2, water: 0.5, grass: 0.5, ground: 2, rock: 2, dragon: 0.5 },
+  electric: { water: 2, electric: 0.5, grass: 0.5, ground: 0, flying: 2, dragon: 0.5 },
+  grass: { fire: 0.5, water: 2, grass: 0.5, poison: 0.5, ground: 2, flying: 0.5, bug: 0.5, rock: 2, dragon: 0.5, steel: 0.5 },
+  ice: { fire: 0.5, water: 0.5, grass: 2, ice: 0.5, ground: 2, flying: 2, dragon: 2, steel: 0.5 },
+  fighting: { normal: 2, ice: 2, poison: 0.5, flying: 0.5, psychic: 0.5, bug: 0.5, rock: 2, ghost: 0, dark: 2, steel: 2, fairy: 0.5 },
+  poison: { grass: 2, poison: 0.5, ground: 0.5, rock: 0.5, ghost: 0.5, steel: 0, fairy: 2 },
+  ground: { fire: 2, electric: 2, grass: 0.5, poison: 2, flying: 0, bug: 0.5, rock: 2, steel: 2 },
+  flying: { electric: 0.5, grass: 2, fighting: 2, bug: 2, rock: 0.5, steel: 0.5 },
+  psychic: { fighting: 2, poison: 2, psychic: 0.5, dark: 0, steel: 0.5 },
+  bug: { fire: 0.5, grass: 2, fighting: 0.5, poison: 0.5, flying: 0.5, psychic: 2, ghost: 0.5, dark: 2, steel: 0.5, fairy: 0.5 },
+  rock: { fire: 2, ice: 2, fighting: 0.5, ground: 0.5, flying: 2, bug: 2, steel: 0.5 },
+  ghost: { normal: 0, psychic: 2, ghost: 2, dark: 0.5 },
+  dragon: { dragon: 2, steel: 0.5, fairy: 0 },
+  dark: { fighting: 0.5, psychic: 2, ghost: 2, dark: 0.5, fairy: 0.5 },
+  steel: { fire: 0.5, water: 0.5, electric: 0.5, ice: 2, rock: 2, steel: 0.5, fairy: 2 },
+  fairy: { fire: 0.5, fighting: 2, poison: 0.5, dragon: 2, dark: 2, steel: 0.5 },
+}
+
+/** Multiplicador de um tipo de ataque contra um único tipo defensor. */
+export function typeMultiplier(attackType: string, defenderType: string): number {
+  return TYPE_CHART[attackType]?.[defenderType] ?? 1
+}
+
+/** Eficácia total contra um defensor de 1–2 tipos (produto dos multiplicadores). */
+export function typeEffectiveness(attackType: string, defenderTypes: string[]): number {
+  const defs = defenderTypes.length ? defenderTypes : ['normal']
+  return defs.reduce((mult, d) => mult * typeMultiplier(attackType, d), 1)
+}
+
+/** Texto e tom para mostrar a eficácia de um golpe. */
+export function effectivenessNote(mult: number): { text: string; tone: 'super' | 'weak' | 'none' | 'normal' } {
+  if (mult === 0) return { text: 'Não teve efeito…', tone: 'none' }
+  if (mult >= 2) return { text: 'Super eficaz!', tone: 'super' }
+  if (mult < 1) return { text: 'Pouco eficaz…', tone: 'weak' }
+  return { text: '', tone: 'normal' }
+}
+
+/* ------------------------------------------------------------------ */
+/* Motor de batalha                                                    */
+/* ------------------------------------------------------------------ */
+
+export interface Fighter {
+  id: string
+  name: string
+  types: string[]
+  level: number
+  maxHp: number
+  hp: number
+  atk: number
+  def: number
+  spa: number
+  spd: number
+  spe: number
+  moves: Move[]
+  atkBuff: number // acumula com ataques de estatuto
+}
+
+/** Constrói um lutador a partir de uma pessoa: stats de batalha escalados pelo
+ *  nível (mais momentos = mais forte) e os seus 4 ataques. */
+export function buildFighter(person: Person): Fighter {
+  const stats = personBattleStats(person)
+  const raw: Record<BattleStatKey, number> = {
+    hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0,
+  }
+  stats.forEach((s) => {
+    raw[s.key] = s.value
+  })
+  const level = personLevelInfo(personXp(person)).level
+  const m = 1 + (level - 1) * 0.06 // bónus de nível
+  const lv = (v: number) => Math.round(v * m)
+  const maxHp = Math.round(raw.hp * 4 * m)
+  return {
+    id: person.id,
+    name: person.name,
+    types: person.types.length ? person.types : ['normal'],
+    level,
+    maxHp,
+    hp: maxHp,
+    atk: lv(raw.atk),
+    def: lv(raw.def),
+    spa: lv(raw.spa),
+    spd: lv(raw.spd),
+    spe: lv(raw.spe),
+    moves: personMoves(person),
+    atkBuff: 1,
+  }
+}
+
+export interface BattleTurn {
+  attacker: 'a' | 'b'
+  moveName: string
+  moveType: string
+  category: MoveCategory
+  damage: number
+  effectiveness: number
+  note: string
+  heal: number
+  aHp: number
+  bHp: number
+  fainted: boolean
+}
+
+export interface BattleResult {
+  a: Fighter // estado inicial (para maxHp / avatar)
+  b: Fighter
+  turns: BattleTurn[]
+  winner: 'a' | 'b' | 'draw'
+}
+
+const MAX_TURNS = 60 // segurança contra combates infinitos
+
+function damageOf(
+  attacker: Fighter,
+  defender: Fighter,
+  move: Move,
+  variance: number,
+): { dmg: number; eff: number } {
+  const eff = typeEffectiveness(move.type, defender.types)
+  if (move.power <= 0 || eff === 0) return { dmg: 0, eff }
+  const physical = move.category === 'fisico'
+  const A = (physical ? attacker.atk : attacker.spa) * attacker.atkBuff
+  const D = physical ? defender.def : defender.spd
+  const stab = attacker.types.includes(move.type) ? 1.5 : 1
+  const dmg = move.power * (A / Math.max(1, D)) * 0.9 * stab * eff * variance
+  return { dmg: Math.max(1, Math.round(dmg)), eff }
+}
+
+/** A "IA": escolhe o ataque de estatuto para curar quando está em apuros,
+ *  senão o golpe de maior dano esperado. */
+function chooseMove(attacker: Fighter, defender: Fighter): Move {
+  let best = attacker.moves[0]
+  let bestScore = -1
+  const lowHp = attacker.hp < attacker.maxHp * 0.45
+  for (const move of attacker.moves) {
+    let score: number
+    if (move.category === 'estatuto') {
+      const bestDmg = Math.max(
+        1,
+        ...attacker.moves.map((mv) => damageOf(attacker, defender, mv, 0.925).dmg),
+      )
+      score = lowHp ? bestDmg + 1 : bestDmg * 0.5
+    } else {
+      score = damageOf(attacker, defender, move, 0.925).dmg
+    }
+    if (score > bestScore) {
+      bestScore = score
+      best = move
+    }
+  }
+  return best
+}
+
+/** Simula uma batalha completa e determinística entre duas pessoas.
+ *  O resultado é sempre igual para o mesmo par (bom para rever). */
+export function simulateBattle(personA: Person, personB: Person): BattleResult {
+  const a = buildFighter(personA)
+  const b = buildFighter(personB)
+  const rnd = mulberry32(hashSeed(a.id + '|' + b.id))
+
+  const turns: BattleTurn[] = []
+  // Quem é mais rápido ataca primeiro (desempate pelo seed).
+  let aTurn = a.spe > b.spe || (a.spe === b.spe && rnd() < 0.5)
+
+  let guard = 0
+  while (a.hp > 0 && b.hp > 0 && guard < MAX_TURNS) {
+    guard++
+    const attacker = aTurn ? a : b
+    const defender = aTurn ? b : a
+    const move = chooseMove(attacker, defender)
+
+    let damage = 0
+    let heal = 0
+    let eff = 1
+    let note = ''
+
+    if (move.category === 'estatuto') {
+      heal = Math.round(attacker.maxHp * 0.15)
+      attacker.hp = Math.min(attacker.maxHp, attacker.hp + heal)
+      attacker.atkBuff = Math.min(1.6, attacker.atkBuff * 1.1)
+      note = 'Preparou-se e recuperou'
+    } else {
+      const res = damageOf(attacker, defender, move, 0.85 + rnd() * 0.15)
+      damage = res.dmg
+      eff = res.eff
+      defender.hp = Math.max(0, defender.hp - damage)
+      note = effectivenessNote(eff).text
+    }
+
+    turns.push({
+      attacker: aTurn ? 'a' : 'b',
+      moveName: move.name,
+      moveType: move.type,
+      category: move.category,
+      damage,
+      effectiveness: eff,
+      note,
+      heal,
+      aHp: a.hp,
+      bHp: b.hp,
+      fainted: defender.hp <= 0,
+    })
+
+    aTurn = !aTurn
+  }
+
+  let winner: 'a' | 'b' | 'draw'
+  if (a.hp <= 0 && b.hp <= 0) winner = 'draw'
+  else if (b.hp <= 0) winner = 'a'
+  else if (a.hp <= 0) winner = 'b'
+  // Bateu no limite de turnos: decide por percentagem de HP.
+  else {
+    const aPct = a.hp / a.maxHp
+    const bPct = b.hp / b.maxHp
+    winner = aPct === bPct ? 'draw' : aPct > bPct ? 'a' : 'b'
+  }
+
+  // Devolve os lutadores no estado inicial (HP cheio) para a UI.
+  return {
+    a: { ...a, hp: a.maxHp, atkBuff: 1 },
+    b: { ...b, hp: b.maxHp, atkBuff: 1 },
+    turns,
+    winner,
+  }
 }
