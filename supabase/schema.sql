@@ -59,9 +59,51 @@ update public.profiles
    set friend_code = public.gen_friend_code()
  where friend_code is null;
 
--- Predicate used by RLS in profiles/people/storage. Function body references
--- public.friendships which is created further down — that's fine, plpgsql
--- resolves table references at execution time.
+-- ------------------------------------------------------------------
+-- friendships: pending + accepted relationships between users.
+-- Created early so the are_friends() function below can reference it
+-- (SQL functions resolve identifiers at creation time, not execution).
+-- ------------------------------------------------------------------
+create table if not exists public.friendships (
+  requester uuid not null references auth.users(id) on delete cascade,
+  addressee uuid not null references auth.users(id) on delete cascade,
+  status text not null check (status in ('pending', 'accepted')),
+  created_at timestamptz default now(),
+  responded_at timestamptz,
+  primary key (requester, addressee),
+  check (requester <> addressee)
+);
+
+create index if not exists friendships_addressee_idx
+  on public.friendships (addressee, status);
+create index if not exists friendships_requester_idx
+  on public.friendships (requester, status);
+
+alter table public.friendships enable row level security;
+
+drop policy if exists "friendships_select" on public.friendships;
+drop policy if exists "friendships_insert" on public.friendships;
+drop policy if exists "friendships_update" on public.friendships;
+drop policy if exists "friendships_delete" on public.friendships;
+
+create policy "friendships_select" on public.friendships
+  for select using (auth.uid() in (requester, addressee));
+create policy "friendships_insert" on public.friendships
+  for insert with check (
+    auth.uid() = requester
+    and status = 'pending'
+    and requester <> addressee
+  );
+-- Only the addressee can accept a pending request.
+create policy "friendships_update" on public.friendships
+  for update
+  using (auth.uid() = addressee and status = 'pending')
+  with check (auth.uid() = addressee and status = 'accepted');
+-- Either party can delete: cancel outgoing, decline incoming, or unfriend.
+create policy "friendships_delete" on public.friendships
+  for delete using (auth.uid() in (requester, addressee));
+
+-- Predicate used by RLS in profiles/people/storage.
 create or replace function public.are_friends(a uuid, b uuid)
 returns boolean
 language sql
@@ -173,48 +215,6 @@ create policy "people_select_friends" on public.people
     is_private = false
     and public.are_friends(auth.uid(), owner)
   );
-
--- ------------------------------------------------------------------
--- friendships: pending + accepted relationships between users
--- ------------------------------------------------------------------
-create table if not exists public.friendships (
-  requester uuid not null references auth.users(id) on delete cascade,
-  addressee uuid not null references auth.users(id) on delete cascade,
-  status text not null check (status in ('pending', 'accepted')),
-  created_at timestamptz default now(),
-  responded_at timestamptz,
-  primary key (requester, addressee),
-  check (requester <> addressee)
-);
-
-create index if not exists friendships_addressee_idx
-  on public.friendships (addressee, status);
-create index if not exists friendships_requester_idx
-  on public.friendships (requester, status);
-
-alter table public.friendships enable row level security;
-
-drop policy if exists "friendships_select" on public.friendships;
-drop policy if exists "friendships_insert" on public.friendships;
-drop policy if exists "friendships_update" on public.friendships;
-drop policy if exists "friendships_delete" on public.friendships;
-
-create policy "friendships_select" on public.friendships
-  for select using (auth.uid() in (requester, addressee));
-create policy "friendships_insert" on public.friendships
-  for insert with check (
-    auth.uid() = requester
-    and status = 'pending'
-    and requester <> addressee
-  );
--- Only the addressee can accept a pending request.
-create policy "friendships_update" on public.friendships
-  for update
-  using (auth.uid() = addressee and status = 'pending')
-  with check (auth.uid() = addressee and status = 'accepted');
--- Either party can delete: cancel outgoing, decline incoming, or unfriend.
-create policy "friendships_delete" on public.friendships
-  for delete using (auth.uid() in (requester, addressee));
 
 -- ------------------------------------------------------------------
 -- Public views: what a friend is allowed to see about you and your people.
