@@ -1,9 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Zap, Star, Trophy, Droplet, Heart, Flame, LogOut } from 'lucide-react'
+import { ChevronLeft, Zap, Star, Trophy, Droplet, Heart, Flame, LogOut, Users, Copy } from 'lucide-react'
 import { usePeople } from '../store/people'
 import { useHomeCountry } from '../lib/settings'
 import { useAuth } from '../lib/auth'
+import { useFriends } from '../lib/friends'
 import { useUserProfile, cycleInfo, PHASE_META } from '../lib/userProfile'
 import type { Gender } from '../types'
 import { personLevelInfo, personXp, totalXp, levelInfo } from '../data/xp'
@@ -17,6 +18,19 @@ export function MeScreen() {
   const [home] = useHomeCountry()
   const [profile, setProfile] = useUserProfile()
   const { user, signOut } = useAuth()
+  const { friends, myCode } = useFriends()
+  const [copied, setCopied] = useState(false)
+
+  const copyCode = async () => {
+    if (!myCode) return
+    try {
+      await navigator.clipboard.writeText(myCode)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      /* ignore */
+    }
+  }
 
   const trainer = useMemo(() => levelInfo(totalXp(people, home)), [people, home])
 
@@ -195,6 +209,30 @@ export function MeScreen() {
             )}
           </section>
         )}
+
+        {/* Friends */}
+        <section className="stats-card">
+          <div className="stats-card__head">
+            <h2><Users size={16} style={{ verticalAlign: '-3px' }} /> Amigos</h2>
+            <Link to="/friends" className="stats-card__link">Gerir</Link>
+          </div>
+          <div className="friend-code">
+            <span className="friend-code__value">{myCode ?? '—'}</span>
+            <button
+              type="button"
+              className="btn btn--ghost friend-code__copy"
+              onClick={copyCode}
+              disabled={!myCode}
+            >
+              <Copy size={15} /> {copied ? 'Copiado' : 'Copiar'}
+            </button>
+          </div>
+          <p className="hint">
+            {friends.length === 0
+              ? 'Ainda sem amigos. Partilha o teu código.'
+              : `${friends.length} ${friends.length === 1 ? 'amigo' : 'amigos'}.`}
+          </p>
+        </section>
 
         {/* Top by moments */}
         <section className="stats-card">

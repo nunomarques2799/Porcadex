@@ -1,37 +1,44 @@
 import { useEffect, useState } from 'react'
-import { getPhoto } from './photoStore'
+import { getPhoto, getPhotoForOwner } from './photoStore'
 
 // In-memory cache so re-renders and re-visits don't re-hit IndexedDB.
 const cache = new Map<string, string>()
 
-/** Resolve a stored photo id to its data URL (or undefined while loading). */
-export function usePhoto(id: string | undefined): string | undefined {
+/** Resolve a stored photo id to its data URL (or undefined while loading).
+ *  If `ownerId` is provided, downloads from that user's folder (used for
+ *  friends). Otherwise falls back to the current user's folder. */
+export function usePhoto(
+  id: string | undefined,
+  ownerId?: string,
+): string | undefined {
+  const cacheKey = id ? (ownerId ? `${ownerId}/${id}` : id) : undefined
   const [url, setUrl] = useState<string | undefined>(() =>
-    id ? cache.get(id) : undefined,
+    cacheKey ? cache.get(cacheKey) : undefined,
   )
 
   useEffect(() => {
     let active = true
-    if (!id) {
+    if (!id || !cacheKey) {
       setUrl(undefined)
       return
     }
-    const cached = cache.get(id)
+    const cached = cache.get(cacheKey)
     if (cached) {
       setUrl(cached)
       return
     }
-    getPhoto(id).then((data) => {
+    const p = ownerId ? getPhotoForOwner(ownerId, id) : getPhoto(id)
+    p.then((data) => {
       if (!active) return
       if (data) {
-        cache.set(id, data)
+        cache.set(cacheKey, data)
         setUrl(data)
       }
     })
     return () => {
       active = false
     }
-  }, [id])
+  }, [id, ownerId, cacheKey])
 
   return url
 }

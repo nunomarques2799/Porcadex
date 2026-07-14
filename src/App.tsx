@@ -8,6 +8,9 @@ import { StatsScreen } from './screens/StatsScreen'
 import { CompareScreen } from './screens/CompareScreen'
 import { BadgesScreen } from './screens/BadgesScreen'
 import { MeScreen } from './screens/MeScreen'
+import { FriendsScreen } from './screens/FriendsScreen'
+import { FriendProfileScreen } from './screens/FriendProfileScreen'
+import { FriendPersonScreen } from './screens/FriendPersonScreen'
 import { AuthScreen, SetupScreen } from './screens/AuthScreen'
 
 export default function App() {
@@ -35,6 +38,12 @@ function Gate() {
             <Route path="/compare" element={<CompareScreen />} />
             <Route path="/badges" element={<BadgesScreen />} />
             <Route path="/me" element={<MeScreen />} />
+            <Route path="/friends" element={<FriendsScreen />} />
+            <Route path="/friends/:friendId" element={<FriendProfileScreen />} />
+            <Route
+              path="/friends/:friendId/person/:personId"
+              element={<FriendPersonScreen />}
+            />
             <Route path="/add" element={<EditScreen />} />
             <Route path="/person/:id" element={<DetailScreen />} />
             <Route path="/person/:id/edit" element={<EditScreen />} />

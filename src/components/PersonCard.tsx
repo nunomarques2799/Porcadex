@@ -1,23 +1,35 @@
 import { Link } from 'react-router-dom'
 import { Heart, Crown, Lock } from 'lucide-react'
-import type { Person } from '../types'
+import type { Person, PublicPerson } from '../types'
 import { typeTheme } from '../data/pokeTypes'
 import { countryName } from '../data/countries'
 import { formatNumber } from '../lib/utils'
-import { personLevelInfo, personXp } from '../data/xp'
+import { personLevelInfo, personXp, publicPersonXp } from '../data/xp'
 import { Avatar } from './Avatar'
 import { TypeBadge } from './TypeBadge'
 import { RelBadge } from './RelBadge'
 import { Ball } from './Ball'
 
-export function PersonCard({ person }: { person: Person }) {
+interface Props {
+  person: Person | PublicPerson
+  /** Route prefix — defaults to /person; friend cards pass /friends/:id/person. */
+  linkBase?: string
+  /** Owner user id, needed to load a friend's avatar from their storage folder. */
+  ownerId?: string
+}
+
+export function PersonCard({ person, linkBase = '/person', ownerId }: Props) {
   const theme = typeTheme(person.types[0])
   const country = countryName(person.country)
-  const level = personLevelInfo(personXp(person)).level
+  // moments only exist on the private `Person` shape; friends' PublicPerson
+  // has no moment history to draw from.
+  const xp = 'moments' in person ? personXp(person as Person) : publicPersonXp(person)
+  const level = personLevelInfo(xp).level
+  const isPrivate = 'private' in person ? Boolean((person as Person).private) : false
 
   return (
     <Link
-      to={`/person/${person.id}`}
+      to={`${linkBase}/${person.id}`}
       className={'card' + (person.legendary ? ' card--legendary' : '')}
       style={{ background: theme.bg }}
     >
@@ -28,7 +40,7 @@ export function PersonCard({ person }: { person: Person }) {
             <Crown size={13} />
           </span>
         )}
-        {person.private && (
+        {isPrivate && (
           <span className="card__private" title="Privada">
             <Lock size={11} />
           </span>
@@ -60,6 +72,7 @@ export function PersonCard({ person }: { person: Person }) {
           name={person.name}
           type={person.types[0]}
           avatarId={person.avatarId}
+          ownerId={ownerId}
           size={58}
         />
       </div>

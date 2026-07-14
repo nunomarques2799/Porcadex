@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Plus, Heart, X, Sun, Moon, BarChart3, Crown, ArrowLeftRight, User, Lock } from 'lucide-react'
+import { Search, Plus, Heart, X, Sun, Moon, BarChart3, Crown, ArrowLeftRight, User, Users, Lock } from 'lucide-react'
 import { usePeople } from '../store/people'
 import { useTheme } from '../lib/theme'
 import { useHomeCountry } from '../lib/settings'
@@ -59,6 +59,9 @@ export function ListScreen() {
           <div className="list-header__actions">
             <Link to="/me" className="theme-toggle" aria-label="Meu perfil">
               <User size={20} />
+            </Link>
+            <Link to="/friends" className="theme-toggle" aria-label="Amigos">
+              <Users size={20} />
             </Link>
             <Link to="/compare" className="theme-toggle" aria-label="Comparar">
               <ArrowLeftRight size={20} />

@@ -7,6 +7,9 @@ interface AvatarProps {
   /** Primary Pokémon type key, used for the placeholder gradient. */
   type?: string
   avatarId?: string
+  /** When present, load the avatar from this user's folder instead of the
+   *  current user's — used to render a friend's avatar. */
+  ownerId?: string
   size?: number
   /** Render a soft ring/shadow (used on the detail header). */
   ring?: boolean
@@ -16,10 +19,11 @@ export function Avatar({
   name,
   type,
   avatarId,
+  ownerId,
   size = 56,
   ring = false,
 }: AvatarProps) {
-  const url = usePhoto(avatarId)
+  const url = usePhoto(avatarId, ownerId)
   const color = getType(type).color
 
   return (

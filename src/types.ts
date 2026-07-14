@@ -80,3 +80,28 @@ export const EMPTY_STATS: Stats = {
   carisma: 50,
   confianca: 50,
 }
+
+/** A friend-visible projection of a Person: everything except sensitive
+ *  fields (about, notes, moments, photoIds, private flag). Kept as a
+ *  distinct type so UI code cannot accidentally read those fields on a
+ *  friend's data. `PublicPerson` is a strict subset of `Person`. */
+export type PublicPerson = Pick<
+  Person,
+  | 'id'
+  | 'number'
+  | 'name'
+  | 'nickname'
+  | 'gender'
+  | 'relationship'
+  | 'types'
+  | 'country'
+  | 'ball'
+  | 'legendary'
+  | 'legendaryCats'
+  | 'avatarId'
+  | 'rating'
+  | 'stats'
+  | 'traits'
+  | 'favorite'
+  | 'createdAt'
+> & { owner: string }

@@ -1,4 +1,4 @@
-import type { Person } from '../types'
+import type { Person, PublicPerson } from '../types'
 
 // XP economy: a kiss is worth something, sex more, and international / legendary
 // conquests stack extra on top.
@@ -60,6 +60,23 @@ export function personLevelInfo(xp: number): LevelInfo {
 
 export function totalXp(people: Person[], home: string): number {
   return people.reduce((sum, p) => sum + xpForPerson(p, home), 0)
+}
+
+/** Public XP: what we can compute for a friend's person, where moments are
+ *  not visible. Base + international + legendary only. */
+export function publicXpForPerson(p: PublicPerson, home: string): number {
+  let xp = p.relationship === 'sexo' ? XP.sexo : XP.beijo
+  if (p.country && p.country !== home) xp += XP.international
+  if (p.legendary) xp += XP.legendary
+  return xp
+}
+
+export function publicTotalXp(people: PublicPerson[], home: string): number {
+  return people.reduce((sum, p) => sum + publicXpForPerson(p, home), 0)
+}
+
+export function publicPersonXp(p: PublicPerson): number {
+  return p.relationship === 'sexo' ? XP.sexo : XP.beijo
 }
 
 // Triangular level curve: reaching level L needs 25·(L-1)·L XP.

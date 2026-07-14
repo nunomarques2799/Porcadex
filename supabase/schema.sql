@@ -19,16 +19,69 @@ create table if not exists public.profiles (
   cycle_length int default 28,
   period_length int default 5,
   home_country text default '620',
+  friend_code text unique,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
 
+-- Backfill for schemas created before friend_code existed.
+alter table public.profiles add column if not exists friend_code text unique;
+
 alter table public.profiles enable row level security;
+
+-- Alphabet without visually ambiguous characters (0/o, 1/l/i).
+create or replace function public.gen_friend_code()
+returns text
+language plpgsql
+as $$
+declare
+  alphabet constant text := 'abcdefghjkmnpqrstuvwxyz23456789';
+  code text;
+  attempt int := 0;
+begin
+  loop
+    code := '';
+    for i in 1..8 loop
+      code := code || substr(alphabet, 1 + floor(random() * length(alphabet))::int, 1);
+    end loop;
+    code := substr(code, 1, 4) || '-' || substr(code, 5, 4);
+    exit when not exists (select 1 from public.profiles where friend_code = code);
+    attempt := attempt + 1;
+    if attempt > 20 then
+      raise exception 'could not generate unique friend code';
+    end if;
+  end loop;
+  return code;
+end;
+$$;
+
+update public.profiles
+   set friend_code = public.gen_friend_code()
+ where friend_code is null;
+
+-- Predicate used by RLS in profiles/people/storage. Function body references
+-- public.friendships which is created further down — that's fine, plpgsql
+-- resolves table references at execution time.
+create or replace function public.are_friends(a uuid, b uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.friendships
+     where status = 'accepted'
+       and ((requester = a and addressee = b)
+         or (requester = b and addressee = a))
+  );
+$$;
 
 drop policy if exists "profiles_select_own" on public.profiles;
 drop policy if exists "profiles_upsert_own" on public.profiles;
 drop policy if exists "profiles_update_own" on public.profiles;
 drop policy if exists "profiles_insert_own" on public.profiles;
+drop policy if exists "profiles_select_friends" on public.profiles;
 
 create policy "profiles_select_own" on public.profiles
   for select using (auth.uid() = id);
@@ -36,6 +89,9 @@ create policy "profiles_insert_own" on public.profiles
   for insert with check (auth.uid() = id);
 create policy "profiles_update_own" on public.profiles
   for update using (auth.uid() = id);
+-- Friends can read each other's profile rows (view exposes only safe cols).
+create policy "profiles_select_friends" on public.profiles
+  for select using (public.are_friends(auth.uid(), id));
 
 -- Auto-create a profile row when a user signs up.
 create or replace function public.handle_new_user()
@@ -45,7 +101,9 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id) values (new.id) on conflict do nothing;
+  insert into public.profiles (id, friend_code)
+  values (new.id, public.gen_friend_code())
+  on conflict do nothing;
   return new;
 end;
 $$;
@@ -96,6 +154,7 @@ drop policy if exists "people_select_own" on public.people;
 drop policy if exists "people_insert_own" on public.people;
 drop policy if exists "people_update_own" on public.people;
 drop policy if exists "people_delete_own" on public.people;
+drop policy if exists "people_select_friends" on public.people;
 
 create policy "people_select_own" on public.people
   for select using (auth.uid() = owner);
@@ -105,6 +164,97 @@ create policy "people_update_own" on public.people
   for update using (auth.uid() = owner);
 create policy "people_delete_own" on public.people
   for delete using (auth.uid() = owner);
+-- Friends can read each other's non-private entries. Sensitive columns
+-- (about, notes, moments, photo_ids, is_private) are hidden by consuming
+-- public.public_people below; RLS is what actually stops the raw table read
+-- from returning private rows.
+create policy "people_select_friends" on public.people
+  for select using (
+    is_private = false
+    and public.are_friends(auth.uid(), owner)
+  );
+
+-- ------------------------------------------------------------------
+-- friendships: pending + accepted relationships between users
+-- ------------------------------------------------------------------
+create table if not exists public.friendships (
+  requester uuid not null references auth.users(id) on delete cascade,
+  addressee uuid not null references auth.users(id) on delete cascade,
+  status text not null check (status in ('pending', 'accepted')),
+  created_at timestamptz default now(),
+  responded_at timestamptz,
+  primary key (requester, addressee),
+  check (requester <> addressee)
+);
+
+create index if not exists friendships_addressee_idx
+  on public.friendships (addressee, status);
+create index if not exists friendships_requester_idx
+  on public.friendships (requester, status);
+
+alter table public.friendships enable row level security;
+
+drop policy if exists "friendships_select" on public.friendships;
+drop policy if exists "friendships_insert" on public.friendships;
+drop policy if exists "friendships_update" on public.friendships;
+drop policy if exists "friendships_delete" on public.friendships;
+
+create policy "friendships_select" on public.friendships
+  for select using (auth.uid() in (requester, addressee));
+create policy "friendships_insert" on public.friendships
+  for insert with check (
+    auth.uid() = requester
+    and status = 'pending'
+    and requester <> addressee
+  );
+-- Only the addressee can accept a pending request.
+create policy "friendships_update" on public.friendships
+  for update
+  using (auth.uid() = addressee and status = 'pending')
+  with check (auth.uid() = addressee and status = 'accepted');
+-- Either party can delete: cancel outgoing, decline incoming, or unfriend.
+create policy "friendships_delete" on public.friendships
+  for delete using (auth.uid() in (requester, addressee));
+
+-- ------------------------------------------------------------------
+-- Public views: what a friend is allowed to see about you and your people.
+-- security_invoker=on so the underlying table RLS applies.
+-- ------------------------------------------------------------------
+create or replace view public.public_profiles
+with (security_invoker = on)
+as
+  select id, name, gender, home_country, friend_code, created_at
+    from public.profiles;
+
+grant select on public.public_profiles to authenticated, anon;
+
+create or replace view public.public_people
+with (security_invoker = on)
+as
+  select id, owner, number, name, nickname, gender, relationship,
+         types, country, ball, legendary, legendary_cats, avatar_id,
+         rating, stats, traits, favorite, created_at
+    from public.people
+   where is_private = false;
+
+grant select on public.public_people to authenticated, anon;
+
+-- RPC used by the "add friend" flow: resolve a friend code to {id, name}
+-- without exposing the full profile of every user.
+create or replace function public.find_by_friend_code(code text)
+returns table (id uuid, name text, friend_code text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select id, name, friend_code
+    from public.profiles
+   where friend_code = code
+   limit 1;
+$$;
+
+grant execute on function public.find_by_friend_code(text) to authenticated;
 
 -- ------------------------------------------------------------------
 -- storage: private photos bucket
@@ -115,6 +265,7 @@ values ('photos', 'photos', false)
 on conflict (id) do nothing;
 
 drop policy if exists "photos_read_own" on storage.objects;
+drop policy if exists "photos_read_friends" on storage.objects;
 drop policy if exists "photos_insert_own" on storage.objects;
 drop policy if exists "photos_update_own" on storage.objects;
 drop policy if exists "photos_delete_own" on storage.objects;
@@ -123,6 +274,18 @@ create policy "photos_read_own" on storage.objects
   for select using (
     bucket_id = 'photos'
     and auth.uid()::text = (storage.foldername(name))[1]
+  );
+-- Friends can read objects in another user's folder. The client only ever
+-- requests avatar_ids that appear in public_people, so this is safe in
+-- practice; a future hardening step is to move shareable avatars into a
+-- dedicated bucket.
+create policy "photos_read_friends" on storage.objects
+  for select using (
+    bucket_id = 'photos'
+    and public.are_friends(
+      auth.uid(),
+      ((storage.foldername(name))[1])::uuid
+    )
   );
 create policy "photos_insert_own" on storage.objects
   for insert with check (

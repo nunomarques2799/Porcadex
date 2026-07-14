@@ -70,6 +70,25 @@ export async function getPhoto(id: string): Promise<string | undefined> {
   return url
 }
 
+/** Download an avatar that lives under a specific owner's folder. Used to
+ *  render friend avatars, which are stored under the friend's user id. */
+export async function getPhotoForOwner(
+  ownerId: string,
+  id: string,
+): Promise<string | undefined> {
+  if (!supabase) return undefined
+  const cacheKey = `${ownerId}/${id}`
+  const cached = urlCache.get(cacheKey)
+  if (cached) return cached
+  const { data, error } = await supabase.storage
+    .from(PHOTO_BUCKET)
+    .download(`${ownerId}/${id}.jpg`)
+  if (error || !data) return undefined
+  const url = URL.createObjectURL(data)
+  urlCache.set(cacheKey, url)
+  return url
+}
+
 export async function deletePhoto(id: string): Promise<void> {
   if (!supabase) return
   const path = pathFor(id)
