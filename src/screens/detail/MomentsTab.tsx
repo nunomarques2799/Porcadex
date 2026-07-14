@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2, CalendarDays } from 'lucide-react'
+import { Plus, Trash2, CalendarDays, ShieldAlert } from 'lucide-react'
 import type { Person, Moment } from '../../types'
 import { usePeople } from '../../store/people'
 import { getRelationship } from '../../data/relationships'
@@ -22,6 +22,8 @@ export function MomentsTab({
   const [kind, setKind] = useState<Kind>(
     person.relationship === 'sexo' ? 'sexo' : 'beijo',
   )
+  const [userCheated, setUserCheated] = useState(false)
+  const [personCheated, setPersonCheated] = useState(false)
 
   const moments = [...person.moments].sort((a, b) =>
     (b.date ?? '').localeCompare(a.date ?? ''),
@@ -36,10 +38,14 @@ export function MomentsTab({
       title: finalTitle,
       date: date || undefined,
       kind: kind === 'outro' ? undefined : kind,
+      userCheated: userCheated || undefined,
+      personCheated: personCheated || undefined,
     }
     updatePerson(person.id, { moments: [...person.moments, moment] })
     setTitle('')
     setDate('')
+    setUserCheated(false)
+    setPersonCheated(false)
     setAdding(false)
   }
 
@@ -85,6 +91,20 @@ export function MomentsTab({
                     <CalendarDays size={13} /> {formatDate(m.date)}
                   </span>
                 )}
+                {(m.userCheated || m.personCheated) && (
+                  <div className="timeline__flags">
+                    {m.userCheated && (
+                      <span className="cheat-flag cheat-flag--user">
+                        <ShieldAlert size={12} /> Eu traí
+                      </span>
+                    )}
+                    {m.personCheated && (
+                      <span className="cheat-flag cheat-flag--them">
+                        <ShieldAlert size={12} /> Traição dela/e
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </li>
           ))}
@@ -128,6 +148,24 @@ export function MomentsTab({
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
+          <div className="cheat-toggles">
+            <label className="cheat-toggle">
+              <input
+                type="checkbox"
+                checked={userCheated}
+                onChange={(e) => setUserCheated(e.target.checked)}
+              />
+              <span>Eu traí o meu parceiro</span>
+            </label>
+            <label className="cheat-toggle">
+              <input
+                type="checkbox"
+                checked={personCheated}
+                onChange={(e) => setPersonCheated(e.target.checked)}
+              />
+              <span>Traição da/o parceira/o dela</span>
+            </label>
+          </div>
           <div className="moment-form__actions">
             <button className="btn btn--ghost" onClick={() => setAdding(false)}>
               Cancelar

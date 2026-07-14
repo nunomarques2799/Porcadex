@@ -7,13 +7,55 @@ export const XP = {
   sexo: 25,
   international: 15,
   legendary: 30,
+  // Extra XP earned per repeat moment on the same person, on top of the base
+  // conquest XP. Sex is worth more than a kiss.
+  momentBeijo: 5,
+  momentSexo: 15,
 }
 
+/** XP the person contributes to the trainer level (global). */
 export function xpForPerson(p: Person, home: string): number {
   let xp = p.relationship === 'sexo' ? XP.sexo : XP.beijo
   if (p.country && p.country !== home) xp += XP.international
   if (p.legendary) xp += XP.legendary
+  xp += xpFromMoments(p)
   return xp
+}
+
+/** Sum of XP earned from a person's timeline moments alone. */
+export function xpFromMoments(p: Person): number {
+  return p.moments.reduce((sum, m) => {
+    if (m.kind === 'sexo') return sum + XP.momentSexo
+    if (m.kind === 'beijo') return sum + XP.momentBeijo
+    return sum
+  }, 0)
+}
+
+/** Per-person "pokémon" XP — grows as you accumulate moments with them. */
+export function personXp(p: Person): number {
+  const base = p.relationship === 'sexo' ? XP.sexo : XP.beijo
+  return base + xpFromMoments(p)
+}
+
+/** Per-person triangular level curve, gentler than the trainer curve:
+ *  L1: 0, L2: 25, L3: 75, L4: 150, L5: 250 … (each level +25). */
+function personXpToReach(level: number): number {
+  return Math.round(12.5 * (level - 1) * level)
+}
+
+export function personLevelInfo(xp: number): LevelInfo {
+  let level = 1
+  while (personXpToReach(level + 1) <= xp) level++
+  const base = personXpToReach(level)
+  const next = personXpToReach(level + 1)
+  return {
+    level,
+    xp,
+    into: xp - base,
+    span: next - base,
+    toNext: next - xp,
+    progress: (xp - base) / (next - base),
+  }
 }
 
 export function totalXp(people: Person[], home: string): number {

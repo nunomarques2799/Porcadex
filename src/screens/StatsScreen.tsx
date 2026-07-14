@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ChevronLeft, Heart, Flame, Crown, Globe, Star, Zap, Award, ChevronRight, Maximize2 } from 'lucide-react'
+import { ChevronLeft, Heart, Flame, Crown, Globe, Star, Zap, Award, ChevronRight, Maximize2, ShieldAlert, VenetianMask, UserX } from 'lucide-react'
 import { usePeople } from '../store/people'
 import { useHomeCountry } from '../lib/settings'
 import { COUNTRIES, countryName } from '../data/countries'
@@ -36,6 +36,18 @@ export function StatsScreen() {
       .filter((t) => t.count > 0)
       .sort((a, b) => b.count - a.count)
 
+    const userCheats = people.reduce(
+      (s, p) => s + p.moments.filter((m) => m.userCheated).length,
+      0,
+    )
+    const personCheats = people.reduce(
+      (s, p) => s + p.moments.filter((m) => m.personCheated).length,
+      0,
+    )
+    const cheatVictims = people.filter((p) =>
+      p.moments.some((m) => m.personCheated),
+    ).length
+
     const catCounts = LEGENDARY_CATS.map((c) => ({
       ...c,
       count: people.filter((p) => p.legendary && p.legendaryCats.includes(c.key)).length,
@@ -58,6 +70,9 @@ export function StatsScreen() {
       types,
       catCounts,
       countryCounts,
+      userCheats,
+      personCheats,
+      cheatVictims,
       maxType: types.length ? types[0].count : 1,
     }
   }, [people, home])
@@ -115,6 +130,20 @@ export function StatsScreen() {
           <Tile value={s.countries} label="Países" icon={<Globe size={16} />} color="#2FAE82" />
           <Tile value={s.avg ? s.avg.toFixed(1) : '—'} label="Média" icon={<Star size={16} />} color="#F5B23E" />
         </div>
+
+        {/* Cheating stats */}
+        {(s.userCheats > 0 || s.personCheats > 0) && (
+          <section className="stats-card">
+            <div className="stats-card__head">
+              <h2>Traições</h2>
+            </div>
+            <div className="tiles">
+              <Tile value={s.userCheats} label="Traí" icon={<VenetianMask size={16} />} color="#8E1836" />
+              <Tile value={s.personCheats} label="Traíram por mim" icon={<UserX size={16} />} color="#7C2E9E" />
+              <Tile value={s.cheatVictims} label="Comprometidas" icon={<ShieldAlert size={16} />} color="#B4204C" />
+            </div>
+          </section>
+        )}
 
         {/* World map */}
         <section className="stats-card">

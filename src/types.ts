@@ -13,14 +13,20 @@ export type Stats = Record<StatKey, number> // each 0–100
 
 /** A memorable moment in the relationship (the "moves" / timeline tab).
  *  `kind` records whether this specific encounter was a kiss or sex — the same
- *  person can have many. */
+ *  person can have many. `userCheated` / `personCheated` mark this specific
+ *  moment as a "traição" from either side. */
 export interface Moment {
   id: string
   title: string
   date?: string // ISO yyyy-mm-dd
   note?: string
   kind?: 'beijo' | 'sexo'
+  userCheated?: boolean
+  personCheated?: boolean
 }
+
+/** Biological/social sex used both for the app's user and each entry. */
+export type Gender = 'M' | 'F' | 'O'
 
 /** A single entry in the Porcadex — one person you have a relationship with. */
 export interface Person {
@@ -28,6 +34,8 @@ export interface Person {
   number: number // auto-incrementing "Pokédex" number
   name: string
   nickname?: string
+  gender?: Gender
+  private?: boolean // hidden unless "mostrar privados" is on
   relationship: string // 'beijo' | 'sexo'
   types: string[] // Pokémon-style types, 1–2 keys into POKE_TYPES
   country?: string // numeric ISO id matching the world map

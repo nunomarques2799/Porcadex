@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { ChevronLeft, Heart, Pencil, Crown } from 'lucide-react'
+import { ChevronLeft, Heart, Pencil, Crown, Zap, Lock } from 'lucide-react'
 import { usePeople } from '../store/people'
 import { typeTheme } from '../data/pokeTypes'
 import { legendaryLabel } from '../data/legendary'
+import { personLevelInfo, personXp } from '../data/xp'
 import { STAT_META } from '../types'
 import { formatNumber } from '../lib/utils'
 import { Avatar } from '../components/Avatar'
@@ -45,6 +46,7 @@ export function DetailScreen() {
   }
 
   const theme = typeTheme(person.types[0])
+  const pLevel = personLevelInfo(personXp(person))
 
   return (
     <div className="detail" style={{ ['--accent' as string]: theme.accent }}>
@@ -90,6 +92,21 @@ export function DetailScreen() {
                 <TypeBadge key={t} type={t} />
               ))}
               <RelBadge relationship={person.relationship} variant="light" />
+              {person.private && (
+                <span className="private-chip"><Lock size={11} /> Privada</span>
+              )}
+            </div>
+            <div className="detail__level">
+              <span className="detail__level-badge">
+                <Zap size={13} /> Nível {pLevel.level}
+              </span>
+              <div className="detail__level-bar">
+                <div
+                  className="detail__level-fill"
+                  style={{ width: `${pLevel.progress * 100}%`, background: theme.accent }}
+                />
+              </div>
+              <span className="detail__level-xp">{pLevel.xp} XP</span>
             </div>
             {person.legendary && (
               <div className="legend-ribbon">

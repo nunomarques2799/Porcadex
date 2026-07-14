@@ -18,6 +18,9 @@ import {
   Compass,
   Medal,
   Gem,
+  ShieldAlert,
+  VenetianMask,
+  UserX,
 } from 'lucide-react'
 import type { Person } from '../types'
 import { totalXp, levelInfo } from './xp'
@@ -54,6 +57,12 @@ const maxEncounters = (p: Person[]) =>
   p.reduce((m, x) => Math.max(m, encounters(x)), 0)
 const totalEncounters = (p: Person[]) =>
   p.reduce((s, x) => s + encounters(x), 0)
+const userCheatCount = (p: Person[]) =>
+  p.reduce((s, x) => s + x.moments.filter((m) => m.userCheated).length, 0)
+const personCheatCount = (p: Person[]) =>
+  p.reduce((s, x) => s + x.moments.filter((m) => m.personCheated).length, 0)
+const cheatVictimsCount = (p: Person[]) =>
+  p.filter((x) => x.moments.some((m) => m.personCheated)).length
 
 export const BADGES: BadgeDef[] = [
   {
@@ -316,6 +325,60 @@ export const BADGES: BadgeDef[] = [
     color: '#E0A62A',
     target: 10,
     value: (c) => levelInfo(totalXp(c.people, c.home)).level,
+  },
+  {
+    id: 'first-cheat',
+    title: 'Fruto Proibido',
+    desc: 'Regista a tua primeira traição',
+    icon: ShieldAlert,
+    color: '#B4204C',
+    target: 1,
+    value: (c) => userCheatCount(c.people),
+  },
+  {
+    id: 'cheater-5',
+    title: 'Traidor de Série',
+    desc: '5 traições tuas',
+    icon: VenetianMask,
+    color: '#8E1836',
+    target: 5,
+    value: (c) => userCheatCount(c.people),
+  },
+  {
+    id: 'cheater-15',
+    title: 'Rei da Traição',
+    desc: '15 traições tuas',
+    icon: VenetianMask,
+    color: '#5A0F22',
+    target: 15,
+    value: (c) => userCheatCount(c.people),
+  },
+  {
+    id: 'homewrecker',
+    title: 'Destruidor de Lares',
+    desc: 'A outra pessoa traiu 3 vezes contigo',
+    icon: UserX,
+    color: '#7C2E9E',
+    target: 3,
+    value: (c) => personCheatCount(c.people),
+  },
+  {
+    id: 'homewrecker-10',
+    title: 'Amante Profissional',
+    desc: 'A outra pessoa traiu 10 vezes contigo',
+    icon: UserX,
+    color: '#4E1B66',
+    target: 10,
+    value: (c) => personCheatCount(c.people),
+  },
+  {
+    id: 'many-victims',
+    title: 'Coração Alheio',
+    desc: '5 pessoas comprometidas na tua lista',
+    icon: ShieldAlert,
+    color: '#B4204C',
+    target: 5,
+    value: (c) => cheatVictimsCount(c.people),
   },
 ]
 

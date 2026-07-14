@@ -6,6 +6,7 @@ import { EditScreen } from './screens/EditScreen'
 import { StatsScreen } from './screens/StatsScreen'
 import { CompareScreen } from './screens/CompareScreen'
 import { BadgesScreen } from './screens/BadgesScreen'
+import { MeScreen } from './screens/MeScreen'
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
             <Route path="/stats" element={<StatsScreen />} />
             <Route path="/compare" element={<CompareScreen />} />
             <Route path="/badges" element={<BadgesScreen />} />
+            <Route path="/me" element={<MeScreen />} />
             <Route path="/add" element={<EditScreen />} />
             <Route path="/person/:id" element={<DetailScreen />} />
             <Route path="/person/:id/edit" element={<EditScreen />} />

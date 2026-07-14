@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Plus, Heart, X, Sun, Moon, BarChart3, Crown, ArrowLeftRight } from 'lucide-react'
+import { Search, Plus, Heart, X, Sun, Moon, BarChart3, Crown, ArrowLeftRight, User, Lock } from 'lucide-react'
 import { usePeople } from '../store/people'
 import { useTheme } from '../lib/theme'
 import { useHomeCountry } from '../lib/settings'
@@ -9,7 +9,7 @@ import { totalXp, levelInfo } from '../data/xp'
 import { PersonCard } from '../components/PersonCard'
 
 type Dex = 'todos' | 'nacional' | 'internacional'
-type Quick = 'todos' | 'fav' | 'beijo' | 'sexo' | 'lendaria'
+type Quick = 'todos' | 'fav' | 'beijo' | 'sexo' | 'lendaria' | 'privadas'
 
 export function ListScreen() {
   const { people } = usePeople()
@@ -24,12 +24,15 @@ export function ListScreen() {
     const q = query.trim().toLowerCase()
     return people
       .filter((p) => {
+        // Privates only show when the "Privadas" chip is active.
+        if (quick !== 'privadas' && p.private) return false
         if (dex === 'nacional' && p.country !== home) return false
         if (dex === 'internacional' && (!p.country || p.country === home)) return false
         if (quick === 'fav' && !p.favorite) return false
         if (quick === 'beijo' && p.relationship !== 'beijo') return false
         if (quick === 'sexo' && p.relationship !== 'sexo') return false
         if (quick === 'lendaria' && !p.legendary) return false
+        if (quick === 'privadas' && !p.private) return false
         if (!q) return true
         return (
           p.name.toLowerCase().includes(q) ||
@@ -54,6 +57,9 @@ export function ListScreen() {
             </p>
           </div>
           <div className="list-header__actions">
+            <Link to="/me" className="theme-toggle" aria-label="Meu perfil">
+              <User size={20} />
+            </Link>
             <Link to="/compare" className="theme-toggle" aria-label="Comparar">
               <ArrowLeftRight size={20} />
             </Link>
@@ -123,6 +129,10 @@ export function ListScreen() {
           <Chip active={quick === 'lendaria'} onClick={() => setQuick('lendaria')} color="#E0A62A">
             <Crown size={13} fill={quick === 'lendaria' ? '#fff' : '#E0A62A'} stroke="none" />
             Lendárias
+          </Chip>
+          <Chip active={quick === 'privadas'} onClick={() => setQuick('privadas')} color="#5b6072">
+            <Lock size={12} />
+            Privadas
           </Chip>
         </div>
       </header>

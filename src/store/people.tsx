@@ -37,6 +37,8 @@ function normalize(raw: Partial<Person>): Person {
     legendary: raw.legendary ?? false,
     legendaryCats: Array.isArray(raw.legendaryCats) ? raw.legendaryCats : [],
     relationship: raw.relationship === 'sexo' ? 'sexo' : 'beijo',
+    gender: raw.gender === 'M' || raw.gender === 'F' || raw.gender === 'O' ? raw.gender : undefined,
+    private: raw.private ?? false,
     photoIds: Array.isArray(raw.photoIds) ? raw.photoIds : [],
     stats: raw.stats ?? { ...EMPTY_STATS },
     about: raw.about ?? {},
@@ -133,6 +135,8 @@ export function emptyDraft(): NewPerson {
   return {
     name: '',
     nickname: '',
+    gender: undefined,
+    private: false,
     relationship: 'beijo',
     types: [],
     country: undefined,

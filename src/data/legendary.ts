@@ -12,6 +12,11 @@ export const LEGENDARY_CATS: LegendaryCatDef[] = [
   { key: 'ginger', label: 'Ginger' },
   { key: 'fatty', label: 'Fatty' },
   { key: 'milf', label: 'Milf' },
+  { key: 'dilf', label: 'Dilf' },
+  { key: 'virgem', label: 'Virgem' },
+  { key: 'nao-binario', label: 'Não Binário' },
+  { key: 'lesbica', label: 'Lésbica' },
+  { key: 'bissexual', label: 'Bissexual' },
 ]
 
 export function legendaryLabel(key: string): string {

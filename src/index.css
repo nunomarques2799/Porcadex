@@ -2170,3 +2170,267 @@ select.input {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- v3 additions --------------------------------------- */
+
+/* Gender selector (Edit + Me) */
+.gender-picker {
+  display: flex;
+  gap: 8px;
+}
+.gender-pick {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+.gender-pick.is-active {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+/* Card small chips */
+.card__lvl {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  background: var(--line);
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.card__private {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  color: var(--ink-soft);
+}
+
+/* Detail per-person level bar */
+.detail__level {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  color: #fff;
+}
+.detail__level-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+}
+.detail__level-bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.detail__level-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s;
+}
+.detail__level-xp {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+.private-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Cheat flags in moments timeline */
+.timeline__flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.cheat-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+.cheat-flag--user {
+  background: #8E1836;
+}
+.cheat-flag--them {
+  background: #7C2E9E;
+}
+
+/* Cheat checkbox toggles in add-moment form */
+.cheat-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  border-radius: var(--radius-sm);
+}
+.cheat-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.cheat-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #8E1836;
+}
+
+/* Me screen */
+.me__body {
+  padding: 12px 16px 90px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cycle {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cycle__phase {
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cycle__phase-label {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+.cycle__phase-desc {
+  font-size: 12px;
+  opacity: 0.9;
+}
+.cycle__facts {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cycle__facts li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  font-size: 13px;
+}
+.cycle__facts li b {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* Top lists */
+.top-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.top-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  border-radius: var(--radius-md);
+  color: inherit;
+  transition: background 0.15s;
+}
+.top-row:hover {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+.top-row__rank {
+  min-width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.top-row__text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.top-row__name {
+  font-weight: 700;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.top-row__sub {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 700;
+}
+.top-row__metric {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.top-row__val {
+  font-weight: 800;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink);
+}
+.top-row__lbl {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}

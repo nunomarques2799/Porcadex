@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
-import { Heart, Crown } from 'lucide-react'
+import { Heart, Crown, Lock } from 'lucide-react'
 import type { Person } from '../types'
 import { typeTheme } from '../data/pokeTypes'
 import { countryName } from '../data/countries'
 import { formatNumber } from '../lib/utils'
+import { personLevelInfo, personXp } from '../data/xp'
 import { Avatar } from './Avatar'
 import { TypeBadge } from './TypeBadge'
 import { RelBadge } from './RelBadge'
@@ -12,6 +13,7 @@ import { Ball } from './Ball'
 export function PersonCard({ person }: { person: Person }) {
   const theme = typeTheme(person.types[0])
   const country = countryName(person.country)
+  const level = personLevelInfo(personXp(person)).level
 
   return (
     <Link
@@ -26,6 +28,12 @@ export function PersonCard({ person }: { person: Person }) {
             <Crown size={13} />
           </span>
         )}
+        {person.private && (
+          <span className="card__private" title="Privada">
+            <Lock size={11} />
+          </span>
+        )}
+        <span className="card__lvl" title={`Nível ${level}`}>Lv {level}</span>
         <Ball ball={person.ball} size={26} className="card__ball-icon" />
       </div>
 

@@ -1,13 +1,13 @@
 import { useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Camera, Trash2, X, Plus, Crown } from 'lucide-react'
+import { ChevronLeft, Camera, Trash2, X, Plus, Crown, Lock } from 'lucide-react'
 import { usePeople, emptyDraft, type NewPerson } from '../store/people'
 import { RELATIONSHIPS } from '../data/relationships'
 import { POKE_TYPES, typeTheme } from '../data/pokeTypes'
 import { BALLS, Ball } from '../components/Ball'
 import { LEGENDARY_CATS } from '../data/legendary'
 import { COUNTRIES } from '../data/countries'
-import { STAT_META, type StatKey } from '../types'
+import { STAT_META, type StatKey, type Gender } from '../types'
 import { Avatar } from '../components/Avatar'
 import { RelBadge } from '../components/RelBadge'
 import { RatingStars } from '../components/RatingStars'
@@ -28,6 +28,8 @@ export function EditScreen() {
       ? {
           name: existing.name,
           nickname: existing.nickname ?? '',
+          gender: existing.gender,
+          private: existing.private ?? false,
           relationship: existing.relationship,
           types: [...existing.types],
           country: existing.country,
@@ -183,6 +185,51 @@ export function EditScreen() {
             placeholder="Como lhe chamas"
             autoComplete="off"
           />
+        </div>
+
+        {/* Gender */}
+        <div className="field">
+          <label>Sexo</label>
+          <div className="gender-picker">
+            {(
+              [
+                { key: 'M', label: 'Masculino' },
+                { key: 'F', label: 'Feminino' },
+                { key: 'O', label: 'Outro' },
+              ] as { key: Gender; label: string }[]
+            ).map((g) => (
+              <button
+                key={g.key}
+                type="button"
+                className={'gender-pick' + (draft.gender === g.key ? ' is-active' : '')}
+                onClick={() => set({ gender: draft.gender === g.key ? undefined : g.key })}
+                style={draft.gender === g.key ? { borderColor: theme.accent, color: theme.accent } : undefined}
+              >
+                {g.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Private toggle */}
+        <div className="field">
+          <button
+            type="button"
+            className={'legend-toggle' + (draft.private ? ' is-active' : '')}
+            onClick={() => set({ private: !draft.private })}
+          >
+            <span className="legend-toggle__label">
+              <Lock size={18} /> Privada
+            </span>
+            <span className={'switch' + (draft.private ? ' switch--on' : '')}>
+              <span className="switch__dot" />
+            </span>
+          </button>
+          {draft.private && (
+            <p className="dex-hint" style={{ marginTop: 8 }}>
+              Só aparece na lista quando ativas “Mostrar privadas”.
+            </p>
+          )}
         </div>
 
         {/* Relationship: Beijo / Sexo */}
