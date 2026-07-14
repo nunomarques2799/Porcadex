@@ -26,6 +26,9 @@ function rowToPublicPerson(r: Record<string, unknown>): PublicPerson {
     traits: Array.isArray(r.traits) ? (r.traits as string[]) : [],
     favorite: Boolean(r.favorite),
     createdAt: r.created_at ? new Date(r.created_at as string).getTime() : Date.now(),
+    instagram: (r.instagram as string) || undefined,
+    location: (r.location as string) || undefined,
+    since: (r.since as string) || undefined,
   }
 }
 

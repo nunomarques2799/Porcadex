@@ -1,17 +1,16 @@
 import { useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Camera, Trash2, X, Plus, Crown, Lock } from 'lucide-react'
+import { ChevronLeft, Camera, Trash2, X, Crown, Lock } from 'lucide-react'
 import { usePeople, emptyDraft, type NewPerson } from '../store/people'
 import { RELATIONSHIPS } from '../data/relationships'
 import { POKE_TYPES, typeTheme } from '../data/pokeTypes'
 import { BALLS, Ball } from '../components/Ball'
 import { LEGENDARY_CATS } from '../data/legendary'
 import { COUNTRIES } from '../data/countries'
-import { STAT_META, type StatKey, type Gender } from '../types'
+import { STAT_META, type StatKey, type Gender, type Moment } from '../types'
 import { TRAIT_SUGGESTIONS } from '../data/traits'
 import { Avatar } from '../components/Avatar'
 import { RelBadge } from '../components/RelBadge'
-import { RatingStars } from '../components/RatingStars'
 import { usePhoto } from '../lib/usePhoto'
 import { putPhoto } from '../lib/photoStore'
 import { fileToDataUrl, resizeImage, uid, statColor } from '../lib/utils'
@@ -51,7 +50,6 @@ export function EditScreen() {
   )
 
   const [previewUrl, setPreviewUrl] = useState<string | undefined>()
-  const [traitInput, setTraitInput] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const storedAvatar = usePhoto(draft.avatarId)
@@ -89,16 +87,6 @@ export function EditScreen() {
     set({ avatarId: pid })
   }
 
-  const addTrait = () => {
-    const t = traitInput.trim()
-    if (!t || draft.traits.includes(t)) {
-      setTraitInput('')
-      return
-    }
-    set({ traits: [...draft.traits, t] })
-    setTraitInput('')
-  }
-
   const addTraitValue = (t: string) => {
     if (!t || draft.traits.includes(t)) return
     set({ traits: [...draft.traits, t] })
@@ -114,7 +102,15 @@ export function EditScreen() {
         await updatePerson(existing.id, clean)
         navigate(`/person/${existing.id}`)
       } else {
-        const person = await addPerson(clean)
+        // Ao adicionar, regista automaticamente o momento em que foi apanhado/a.
+        const kind = clean.relationship === 'sexo' ? 'sexo' : 'beijo'
+        const firstMoment: Moment = {
+          id: uid(),
+          title: kind === 'sexo' ? 'Primeira vez' : 'Primeiro beijo',
+          kind,
+          date: clean.about.since || undefined,
+        }
+        const person = await addPerson({ ...clean, moments: [firstMoment, ...clean.moments] })
         navigate(`/person/${person.id}`, { replace: true })
       }
     } finally {
@@ -370,12 +366,6 @@ export function EditScreen() {
           )}
         </div>
 
-        {/* Overall rating */}
-        <div className="field">
-          <label>Avaliação geral</label>
-          <RatingStars value={draft.rating} size={30} color={theme.accent} onChange={(v) => set({ rating: v })} />
-        </div>
-
         {/* Stats */}
         <div className="field">
           <label>Estatísticas</label>
@@ -481,35 +471,11 @@ export function EditScreen() {
           </div>
         </div>
 
-        {/* Traits */}
+        {/* Traits — apenas sugestões, sem escrita livre */}
         <div className="field">
           <label htmlFor="trait">Características</label>
-          <div className="trait-input">
-            <input
-              id="trait"
-              className="input"
-              value={traitInput}
-              onChange={(e) => setTraitInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  addTrait()
-                }
-              }}
-              placeholder="Ex: Olhar matador"
-              autoComplete="off"
-            />
-            <button
-              type="button"
-              className="iconbtn iconbtn--filled"
-              style={{ background: theme.accent }}
-              onClick={addTrait}
-              aria-label="Adicionar característica"
-            >
-              <Plus size={20} />
-            </button>
-          </div>
           <select
+            id="trait"
             className="input trait-suggest"
             value=""
             onChange={(e) => {
@@ -518,7 +484,7 @@ export function EditScreen() {
             }}
             aria-label="Sugestões de características"
           >
-            <option value="">+ Escolher das sugestões…</option>
+            <option value="">+ Escolher característica…</option>
             {TRAIT_SUGGESTIONS.map((g) => (
               <optgroup key={g.label} label={g.label}>
                 {g.items.map((t) => (

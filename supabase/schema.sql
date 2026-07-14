@@ -233,7 +233,12 @@ with (security_invoker = on)
 as
   select id, owner, number, name, nickname, gender, relationship,
          types, country, ball, legendary, legendary_cats, avatar_id,
-         rating, stats, traits, favorite, created_at
+         rating, stats, traits, favorite, created_at,
+         -- Subconjunto de `about` visível para amigos (não expõe telefone,
+         -- aniversário nem como se conheceram).
+         about->>'instagram' as instagram,
+         about->>'location'  as location,
+         about->>'since'     as since
     from public.people
    where is_private = false;
 

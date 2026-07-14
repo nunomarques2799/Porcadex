@@ -104,4 +104,10 @@ export type PublicPerson = Pick<
   | 'traits'
   | 'favorite'
   | 'createdAt'
-> & { owner: string }
+> & {
+  owner: string
+  // Subconjunto de `about` que um amigo pode ver no perfil da pessoa.
+  instagram?: string
+  location?: string
+  since?: string // ISO — quando foi apanhado/a
+}

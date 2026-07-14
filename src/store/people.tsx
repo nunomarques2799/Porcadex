@@ -9,6 +9,7 @@ import {
 } from 'react'
 import type { Person } from '../types'
 import { EMPTY_STATS } from '../types'
+import { DEFAULT_HOME_ID } from '../data/countries'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { deletePhoto } from '../lib/photoStore'
@@ -93,6 +94,7 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase
       .from('people')
       .select('*')
+      .eq('owner', user.id) // só as MINHAS — RLS deixa ler as dos amigos, mas a lista é só minha
       .order('number', { ascending: true })
     if (error) {
       setError(error.message)
@@ -235,7 +237,7 @@ export function emptyDraft(): NewPerson {
     private: false,
     relationship: 'beijo',
     types: [],
-    country: undefined,
+    country: DEFAULT_HOME_ID, // Portugal pré-selecionado (alterável)
     ball: 'poke',
     legendary: false,
     legendaryCats: [],

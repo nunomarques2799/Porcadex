@@ -242,7 +242,7 @@ export function BattleScreen() {
       <div className="pkmn">
         <div className="pkmn__scene">
           {/* Adversário (cima) */}
-          <InfoBox className="pkmn__info pkmn__info--foe" name={fb.name} level={fb.level} hp={hpB} maxHp={fb.maxHp} />
+          <InfoBox className="pkmn__info pkmn__info--foe" name={fb.name} level={fb.level} hp={hpB} maxHp={fb.maxHp} showNumbers />
           <div className={'pkmn__mon pkmn__mon--foe' + (hpB <= 0 ? ' is-fainted' : '')}>
             <div className="pkmn__platform" />
             <Avatar name={fb.name} type={fb.types[0]} avatarId={b?.avatarId} size={96} ring />

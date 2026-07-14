@@ -1,12 +1,12 @@
 import { useMemo } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Crown, Zap, ArrowLeftRight } from 'lucide-react'
+import { ChevronLeft, Crown, Zap, ArrowLeftRight, Instagram, MapPin, Calendar } from 'lucide-react'
 import { useFriendPeople, useFriendProfile } from '../lib/friendPeople'
 import { typeTheme } from '../data/pokeTypes'
 import { legendaryLabel } from '../data/legendary'
 import { personLevelInfo, publicPersonXp } from '../data/xp'
 import { STAT_META } from '../types'
-import { formatNumber } from '../lib/utils'
+import { formatDate, formatNumber, instagramLink } from '../lib/utils'
 import { Avatar } from '../components/Avatar'
 import { TypeBadge } from '../components/TypeBadge'
 import { RelBadge } from '../components/RelBadge'
@@ -131,6 +131,50 @@ export function FriendPersonScreen() {
               </div>
             )}
           </div>
+
+          {(person.instagram || person.location || person.since) && (
+            <div className="contact-list" style={{ marginTop: 18 }}>
+              {person.since && (
+                <div className="contact" style={{ ['--accent' as string]: theme.accent }}>
+                  <span className="contact__icon">
+                    <Calendar size={18} />
+                  </span>
+                  <div className="contact__text">
+                    <span className="contact__label">Apanhado/a a</span>
+                    <span className="contact__value">{formatDate(person.since)}</span>
+                  </div>
+                </div>
+              )}
+              {person.location && (
+                <div className="contact" style={{ ['--accent' as string]: theme.accent }}>
+                  <span className="contact__icon">
+                    <MapPin size={18} />
+                  </span>
+                  <div className="contact__text">
+                    <span className="contact__label">Localização</span>
+                    <span className="contact__value">{person.location}</span>
+                  </div>
+                </div>
+              )}
+              {person.instagram && (
+                <a
+                  className="contact contact--link"
+                  href={instagramLink(person.instagram).url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ ['--accent' as string]: theme.accent }}
+                >
+                  <span className="contact__icon">
+                    <Instagram size={18} />
+                  </span>
+                  <div className="contact__text">
+                    <span className="contact__label">Instagram</span>
+                    <span className="contact__value">{instagramLink(person.instagram).display}</span>
+                  </div>
+                </a>
+              )}
+            </div>
+          )}
 
           <Link
             to={`/compare?friend=${friendId}&fp=${person.id}`}
