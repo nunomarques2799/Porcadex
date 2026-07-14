@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Zap, Star, Trophy, Droplet, Heart, Flame } from 'lucide-react'
+import { ChevronLeft, Zap, Star, Trophy, Droplet, Heart, Flame, LogOut } from 'lucide-react'
 import { usePeople } from '../store/people'
 import { useHomeCountry } from '../lib/settings'
+import { useAuth } from '../lib/auth'
 import { useUserProfile, cycleInfo, PHASE_META } from '../lib/userProfile'
 import type { Gender } from '../types'
 import { personLevelInfo, personXp, totalXp, levelInfo } from '../data/xp'
@@ -15,6 +16,7 @@ export function MeScreen() {
   const { people } = usePeople()
   const [home] = useHomeCountry()
   const [profile, setProfile] = useUserProfile()
+  const { user, signOut } = useAuth()
 
   const trainer = useMemo(() => levelInfo(totalXp(people, home)), [people, home])
 
@@ -74,7 +76,10 @@ export function MeScreen() {
 
         {/* Profile config */}
         <section className="stats-card">
-          <div className="stats-card__head"><h2>Perfil</h2></div>
+          <div className="stats-card__head">
+            <h2>Perfil</h2>
+            {user && <span className="me__email">{user.email}</span>}
+          </div>
           <div className="field">
             <label htmlFor="me-name">Nome</label>
             <input
@@ -244,6 +249,13 @@ export function MeScreen() {
             </ul>
           )}
         </section>
+
+        <button
+          className="btn btn--danger-ghost me__signout"
+          onClick={() => void signOut()}
+        >
+          <LogOut size={17} /> Terminar sessão
+        </button>
       </div>
     </div>
   )

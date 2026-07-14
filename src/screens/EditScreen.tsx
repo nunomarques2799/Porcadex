@@ -98,21 +98,27 @@ export function EditScreen() {
     setTraitInput('')
   }
 
-  const save = () => {
-    if (!draft.name.trim()) return
+  const [saving, setSaving] = useState(false)
+  const save = async () => {
+    if (!draft.name.trim() || saving) return
     const clean: NewPerson = { ...draft, name: draft.name.trim() }
-    if (isEdit && existing) {
-      updatePerson(existing.id, clean)
-      navigate(`/person/${existing.id}`)
-    } else {
-      const person = addPerson(clean)
-      navigate(`/person/${person.id}`, { replace: true })
+    setSaving(true)
+    try {
+      if (isEdit && existing) {
+        await updatePerson(existing.id, clean)
+        navigate(`/person/${existing.id}`)
+      } else {
+        const person = await addPerson(clean)
+        navigate(`/person/${person.id}`, { replace: true })
+      }
+    } finally {
+      setSaving(false)
     }
   }
 
-  const remove = () => {
+  const remove = async () => {
     if (existing) {
-      deletePerson(existing.id)
+      await deletePerson(existing.id)
       navigate('/', { replace: true })
     }
   }
@@ -129,10 +135,10 @@ export function EditScreen() {
         <button
           className="btn btn--primary btn--sm"
           style={{ background: theme.accent }}
-          onClick={save}
-          disabled={!draft.name.trim()}
+          onClick={() => void save()}
+          disabled={!draft.name.trim() || saving}
         >
-          Guardar
+          {saving ? 'A guardar…' : 'Guardar'}
         </button>
       </header>
 
@@ -532,7 +538,7 @@ export function EditScreen() {
                 <button className="btn btn--ghost" onClick={() => setConfirmDelete(false)}>
                   Cancelar
                 </button>
-                <button className="btn btn--danger" onClick={remove}>
+                <button className="btn btn--danger" onClick={() => void remove()}>
                   Remover
                 </button>
               </div>

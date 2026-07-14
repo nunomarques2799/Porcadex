@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Gender } from '../types'
+import { supabase } from './supabase'
+import { useAuth } from './auth'
 
 export interface UserProfile {
   name: string
@@ -12,8 +14,6 @@ export interface UserProfile {
   periodLength: number
 }
 
-const KEY = 'porcadex.user.v1'
-
 const DEFAULT: UserProfile = {
   name: '',
   gender: undefined,
@@ -22,37 +22,59 @@ const DEFAULT: UserProfile = {
   periodLength: 5,
 }
 
-function load(): UserProfile {
-  try {
-    const raw = localStorage.getItem(KEY)
-    if (!raw) return { ...DEFAULT }
-    const parsed = JSON.parse(raw) as Partial<UserProfile>
-    return {
-      ...DEFAULT,
-      ...parsed,
-      cycleLength: Number(parsed.cycleLength) > 0 ? Number(parsed.cycleLength) : 28,
-      periodLength: Number(parsed.periodLength) > 0 ? Number(parsed.periodLength) : 5,
-    }
-  } catch {
-    return { ...DEFAULT }
+function rowToProfile(r: Record<string, unknown>): UserProfile {
+  return {
+    name: (r.name as string) ?? '',
+    gender: (r.gender as Gender) ?? undefined,
+    lastPeriod: (r.last_period as string) || undefined,
+    cycleLength: Number(r.cycle_length) > 0 ? Number(r.cycle_length) : 28,
+    periodLength: Number(r.period_length) > 0 ? Number(r.period_length) : 5,
   }
 }
 
-export function getUserProfile(): UserProfile {
-  return load()
+function profileToRow(p: Partial<UserProfile>): Record<string, unknown> {
+  const row: Record<string, unknown> = {}
+  if (p.name !== undefined) row.name = p.name
+  if (p.gender !== undefined) row.gender = p.gender ?? null
+  if (p.lastPeriod !== undefined) row.last_period = p.lastPeriod ?? null
+  if (p.cycleLength !== undefined) row.cycle_length = p.cycleLength
+  if (p.periodLength !== undefined) row.period_length = p.periodLength
+  return row
 }
 
 export function useUserProfile(): [UserProfile, (patch: Partial<UserProfile>) => void] {
-  const [profile, setProfile] = useState<UserProfile>(load)
+  const { user } = useAuth()
+  const [profile, setProfile] = useState<UserProfile>({ ...DEFAULT })
+
   useEffect(() => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(profile))
-    } catch {
-      /* ignore */
+    if (!supabase || !user) {
+      setProfile({ ...DEFAULT })
+      return
     }
-  }, [profile])
-  const update = (patch: Partial<UserProfile>) =>
+    let active = true
+    supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!active) return
+        if (data) setProfile(rowToProfile(data as Record<string, unknown>))
+      })
+    return () => {
+      active = false
+    }
+  }, [user])
+
+  const update = (patch: Partial<UserProfile>) => {
     setProfile((p) => ({ ...p, ...patch }))
+    if (!supabase || !user) return
+    void supabase
+      .from('profiles')
+      .upsert({ id: user.id, ...profileToRow(patch) })
+      .then(() => undefined)
+  }
+
   return [profile, update]
 }
 
@@ -61,7 +83,7 @@ export type CyclePhase = 'periodo' | 'folicular' | 'fertil' | 'ovulacao' | 'lute
 
 export interface CycleInfo {
   phase: CyclePhase
-  dayOfCycle: number // 1-based
+  dayOfCycle: number
   nextPeriod: Date | null
   fertileStart: Date | null
   fertileEnd: Date | null
@@ -88,11 +110,8 @@ export function cycleInfo(profile: UserProfile, today: Date = new Date()): Cycle
 
   const cycle = profile.cycleLength
   const period = profile.periodLength
-
-  // Normalise "today" to midnight for stable arithmetic.
   const t = new Date(today.getFullYear(), today.getMonth(), today.getDate())
 
-  // Walk the last-period date forward until it's the cycle containing today.
   let cursor = new Date(start)
   while (t.getTime() - cursor.getTime() >= cycle * DAY) {
     cursor = new Date(cursor.getTime() + cycle * DAY)
