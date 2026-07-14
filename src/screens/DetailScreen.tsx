@@ -14,14 +14,16 @@ import { Ball } from '../components/Ball'
 import { RatingStars } from '../components/RatingStars'
 import { StatBar } from '../components/StatBar'
 import { AboutTab } from './detail/AboutTab'
+import { CombatTab } from './detail/CombatTab'
 import { MomentsTab } from './detail/MomentsTab'
 import { PhotosTab } from './detail/PhotosTab'
 
-type Tab = 'sobre' | 'stats' | 'momentos' | 'fotos'
+type Tab = 'sobre' | 'stats' | 'combate' | 'momentos' | 'fotos'
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'sobre', label: 'Sobre' },
   { key: 'stats', label: 'Stats' },
+  { key: 'combate', label: 'Combate' },
   { key: 'momentos', label: 'Momentos' },
   { key: 'fotos', label: 'Fotos' },
 ]
@@ -159,6 +161,7 @@ export function DetailScreen() {
               ))}
             </div>
           )}
+          {tab === 'combate' && <CombatTab person={person} accent={theme.accent} />}
           {tab === 'momentos' && <MomentsTab person={person} accent={theme.accent} />}
           {tab === 'fotos' && <PhotosTab person={person} accent={theme.accent} />}
         </div>
