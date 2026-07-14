@@ -1085,6 +1085,9 @@ textarea.input {
   display: flex;
   gap: 8px;
 }
+.trait-suggest {
+  margin-top: 8px;
+}
 .trait-list--edit {
   margin-top: 4px;
 }

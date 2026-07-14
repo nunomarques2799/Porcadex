@@ -8,6 +8,7 @@ import { BALLS, Ball } from '../components/Ball'
 import { LEGENDARY_CATS } from '../data/legendary'
 import { COUNTRIES } from '../data/countries'
 import { STAT_META, type StatKey, type Gender } from '../types'
+import { TRAIT_SUGGESTIONS } from '../data/traits'
 import { Avatar } from '../components/Avatar'
 import { RelBadge } from '../components/RelBadge'
 import { RatingStars } from '../components/RatingStars'
@@ -96,6 +97,11 @@ export function EditScreen() {
     }
     set({ traits: [...draft.traits, t] })
     setTraitInput('')
+  }
+
+  const addTraitValue = (t: string) => {
+    if (!t || draft.traits.includes(t)) return
+    set({ traits: [...draft.traits, t] })
   }
 
   const [saving, setSaving] = useState(false)
@@ -503,6 +509,26 @@ export function EditScreen() {
               <Plus size={20} />
             </button>
           </div>
+          <select
+            className="input trait-suggest"
+            value=""
+            onChange={(e) => {
+              addTraitValue(e.target.value)
+              e.currentTarget.value = ''
+            }}
+            aria-label="Sugestões de características"
+          >
+            <option value="">+ Escolher das sugestões…</option>
+            {TRAIT_SUGGESTIONS.map((g) => (
+              <optgroup key={g.label} label={g.label}>
+                {g.items.map((t) => (
+                  <option key={t} value={t} disabled={draft.traits.includes(t)}>
+                    {t}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
           {draft.traits.length > 0 && (
             <div className="trait-list trait-list--edit">
               {draft.traits.map((t) => (
