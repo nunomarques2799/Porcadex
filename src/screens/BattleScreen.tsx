@@ -1,25 +1,33 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Plus, X, Search, Swords, Trophy, RotateCcw, Zap } from 'lucide-react'
+import { ChevronLeft, Plus, X, Search, Swords, RotateCcw } from 'lucide-react'
 import { usePeople } from '../store/people'
 import type { Person } from '../types'
 import { typeTheme, getType } from '../data/pokeTypes'
 import {
-  simulateBattle,
+  buildFighter,
+  aiChooseMove,
+  resolveMove,
+  moveMaxPp,
+  effectivenessNote,
   battleStatTotal,
   personBattleStats,
-  type BattleResult,
+  STRUGGLE,
+  type Fighter,
+  type Move,
 } from '../data/battle'
 import { formatNumber } from '../lib/utils'
 import { Avatar } from '../components/Avatar'
 import { TypeBadge } from '../components/TypeBadge'
 
-const STEP_MS = 1100
+type Phase = 'busy' | 'choose' | 'over'
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 function hpColor(pct: number): string {
-  if (pct > 0.5) return '#37B98C'
-  if (pct > 0.2) return '#F5943C'
-  return '#F0563E'
+  if (pct > 0.5) return '#58d860'
+  if (pct > 0.2) return '#f8d030'
+  return '#f85038'
 }
 
 export function BattleScreen() {
@@ -30,82 +38,199 @@ export function BattleScreen() {
   const [bId, setBId] = useState<string | null>(null)
   const [picking, setPicking] = useState<null | 'a' | 'b'>(null)
 
-  const [result, setResult] = useState<BattleResult | null>(null)
-  const [step, setStep] = useState(-1) // -1 = antes do 1º ataque
-  const [playing, setPlaying] = useState(false)
-
   const a = aId ? people.find((p) => p.id === aId) ?? null : null
   const b = bId ? people.find((p) => p.id === bId) ?? null : null
 
-  const accentA = typeTheme(a?.types[0]).accent
-  const accentB = typeTheme(b?.types[0]).accent
+  // Estado do combate ---------------------------------------------------
+  const [started, setStarted] = useState(false)
+  const fA = useRef<Fighter | null>(null)
+  const fB = useRef<Fighter | null>(null)
+  const runId = useRef(0)
 
-  const logRef = useRef<HTMLDivElement>(null)
+  const [hpA, setHpA] = useState(0)
+  const [hpB, setHpB] = useState(0)
+  const [pp, setPP] = useState<number[]>([])
+  const [maxPP, setMaxPP] = useState<number[]>([])
+  const [phase, setPhase] = useState<Phase>('choose')
+  const [message, setMessage] = useState('')
+  const [hover, setHover] = useState(0)
 
-  // Playback: avança um turno de cada vez enquanto estiver a jogar.
-  useEffect(() => {
-    if (!playing || !result) return
-    if (step >= result.turns.length - 1) {
-      setPlaying(false)
-      return
-    }
-    const t = setTimeout(() => setStep((s) => s + 1), STEP_MS)
-    return () => clearTimeout(t)
-  }, [playing, step, result])
+  // Invalida qualquer sequência em curso ao desmontar.
+  useEffect(() => () => void (runId.current++), [])
 
-  // Auto-scroll do log.
-  useEffect(() => {
-    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
-  }, [step])
+  const aName = a?.name.split(' ')[0] ?? ''
+  const bName = b?.name.split(' ')[0] ?? ''
 
-  const startFight = () => {
-    if (!a || !b) return
-    setResult(simulateBattle(a, b))
-    setStep(-1)
-    setPlaying(true)
+  /** Mostra uma mensagem e espera; devolve false se a batalha foi reiniciada. */
+  const say = async (text: string, my: number, ms = 1150) => {
+    setMessage(text)
+    await sleep(ms)
+    return runId.current === my
   }
 
-  const reset = () => {
-    setResult(null)
-    setStep(-1)
-    setPlaying(false)
+  const runIntro = async (my: number) => {
+    setPhase('busy')
+    if (!(await say(`${bName} quer combater!`, my, 1000)) || !(await say(`Vai, ${aName}!`, my, 900)))
+      return
+    setPhase('choose')
+    setMessage(`O que vai ${aName} fazer?`)
+  }
+
+  const startBattle = () => {
+    if (!a || !b) return
+    runId.current++
+    const my = runId.current
+    fA.current = buildFighter(a)
+    fB.current = buildFighter(b)
+    setHpA(fA.current.maxHp)
+    setHpB(fB.current.maxHp)
+    setPP(fA.current.moves.map(moveMaxPp))
+    setMaxPP(fA.current.moves.map(moveMaxPp))
+    setHover(0)
+    setStarted(true)
+    void runIntro(my)
+  }
+
+  const leaveBattle = () => {
+    runId.current++
+    setStarted(false)
+    setPhase('choose')
+    setMessage('')
   }
 
   const pick = (id: string) => {
     if (picking === 'a') setAId(id)
     else if (picking === 'b') setBId(id)
     setPicking(null)
-    reset()
   }
 
-  // HP atual conforme o passo de playback.
-  const cur = result
-    ? step >= 0
-      ? result.turns[step]
-      : { aHp: result.a.maxHp, bHp: result.b.maxHp }
-    : null
-  const aHp = cur ? cur.aHp : result?.a.maxHp ?? 0
-  const bHp = cur ? cur.bHp : result?.b.maxHp ?? 0
-  const aMax = result?.a.maxHp ?? 1
-  const bMax = result?.b.maxHp ?? 1
+  /** O jogador escolhe um ataque; resolve o turno completo (jogador + IA). */
+  const playerMove = async (i: number) => {
+    if (phase !== 'choose' || !fA.current || !fB.current) return
+    const av = fA.current
+    const bv = fB.current
+    const my = runId.current
 
-  const finished = !!result && !playing && step >= result.turns.length - 1
-  const lastTurn = result && step >= 0 ? result.turns[step] : null
-  const shownTurns = result ? result.turns.slice(0, step + 1) : []
+    const allOut = pp.every((v) => v <= 0)
+    const outOfThis = pp[i] <= 0
+    if (outOfThis && !allOut) return
 
-  const winnerName =
-    finished && result
-      ? result.winner === 'a'
-        ? a?.name
-        : result.winner === 'b'
-          ? b?.name
-          : null
-      : null
+    const pMove = outOfThis && allOut ? STRUGGLE : av.moves[i]
+    if (!(outOfThis && allOut)) {
+      setPP((prev) => {
+        const n = [...prev]
+        n[i] = Math.max(0, n[i] - 1)
+        return n
+      })
+    }
+    const oMove = aiChooseMove(bv, av)
+
+    setPhase('busy')
+
+    const playerFirst =
+      av.spe > bv.spe || (av.spe === bv.spe && Math.random() < 0.5)
+    const seq: { who: 'a' | 'b'; mv: Move }[] = playerFirst
+      ? [
+          { who: 'a', mv: pMove },
+          { who: 'b', mv: oMove },
+        ]
+      : [
+          { who: 'b', mv: oMove },
+          { who: 'a', mv: pMove },
+        ]
+
+    for (const { who, mv } of seq) {
+      const atk = who === 'a' ? av : bv
+      const def = who === 'a' ? bv : av
+      if (atk.hp <= 0) continue
+      const nm = who === 'a' ? aName : bName
+
+      if (!(await say(`${nm} usou ${mv.name}!`, my))) return
+      const res = resolveMove(atk, def, mv)
+      setHpA(av.hp)
+      setHpB(bv.hp)
+      await sleep(520)
+      if (runId.current !== my) return
+
+      if (mv.category === 'estatuto') {
+        if (!(await say(`${nm} recompôs-se! (+${res.heal} HP)`, my))) return
+      } else {
+        const note = effectivenessNote(res.effectiveness).text
+        if (note && !(await say(note, my))) return
+      }
+
+      if (res.fainted) {
+        const loser = who === 'a' ? bName : aName
+        if (!(await say(`${loser} foi derrotado/a!`, my, 1000)) || runId.current !== my) return
+        setPhase('over')
+        setMessage(`${who === 'a' ? aName : bName} venceu o combate!`)
+        return
+      }
+    }
+
+    setPhase('choose')
+    setMessage(`O que vai ${aName} fazer?`)
+  }
+
+  // --------------------------------------------------------------------
+  // SETUP: escolher os dois lutadores
+  // --------------------------------------------------------------------
+  if (!started) {
+    const accentA = typeTheme(a?.types[0]).accent
+    const accentB = typeTheme(b?.types[0]).accent
+    return (
+      <div className="screen battle">
+        <header className="edit__bar">
+          <button className="iconbtn" onClick={() => navigate(-1)} aria-label="Voltar">
+            <ChevronLeft size={24} />
+          </button>
+          <h1 className="edit__title">
+            <Swords size={18} /> Combate
+          </h1>
+          <span style={{ width: 42 }} />
+        </header>
+
+        <div className="arena">
+          <SetupSlot person={a} accent={accentA} onPick={() => setPicking('a')} side="a" />
+          <span className="arena__vs">VS</span>
+          <SetupSlot person={b} accent={accentB} onPick={() => setPicking('b')} side="b" />
+        </div>
+
+        {a && b ? (
+          <div className="battle-controls">
+            <button className="btn btn--primary btn--fight" onClick={startBattle}>
+              <Swords size={18} /> Lutar!
+            </button>
+          </div>
+        ) : (
+          <p className="muted-block">Escolhe dois lutadores para o combate.</p>
+        )}
+
+        {picking && (
+          <BattlePicker
+            people={people}
+            excludeId={picking === 'a' ? bId : aId}
+            onClose={() => setPicking(null)}
+            onSelect={pick}
+          />
+        )}
+      </div>
+    )
+  }
+
+  // --------------------------------------------------------------------
+  // COMBATE: cena estilo Pokémon
+  // --------------------------------------------------------------------
+  const fa = fA.current!
+  const fb = fB.current!
+  const previewMove = fa.moves[hover] ?? fa.moves[0]
+  const pt = getType(previewMove.type)
+  const allOut = pp.every((v) => v <= 0)
 
   return (
     <div className="screen battle">
       <header className="edit__bar">
-        <button className="iconbtn" onClick={() => navigate(-1)} aria-label="Voltar">
+        <button className="iconbtn" onClick={leaveBattle} aria-label="Sair do combate">
           <ChevronLeft size={24} />
         </button>
         <h1 className="edit__title">
@@ -114,167 +239,128 @@ export function BattleScreen() {
         <span style={{ width: 42 }} />
       </header>
 
-      {/* Arena */}
-      <div className="arena">
-        <FighterSide
-          person={a}
-          accent={accentA}
-          hp={aHp}
-          maxHp={aMax}
-          showHp={!!result}
-          onPick={() => setPicking('a')}
-          side="a"
-          active={playing && lastTurn?.attacker === 'a'}
-        />
-        <div className="arena__vs">
-          <Zap size={22} />
-          <span>VS</span>
+      <div className="pkmn">
+        <div className="pkmn__scene">
+          {/* Adversário (cima) */}
+          <InfoBox className="pkmn__info pkmn__info--foe" name={fb.name} level={fb.level} hp={hpB} maxHp={fb.maxHp} />
+          <div className={'pkmn__mon pkmn__mon--foe' + (hpB <= 0 ? ' is-fainted' : '')}>
+            <div className="pkmn__platform" />
+            <Avatar name={fb.name} type={fb.types[0]} avatarId={b?.avatarId} size={96} ring />
+          </div>
+
+          {/* Jogador (baixo) */}
+          <div className={'pkmn__mon pkmn__mon--ally' + (hpA <= 0 ? ' is-fainted' : '')}>
+            <div className="pkmn__platform" />
+            <Avatar name={fa.name} type={fa.types[0]} avatarId={a?.avatarId} size={112} ring />
+          </div>
+          <InfoBox className="pkmn__info pkmn__info--ally" name={fa.name} level={fa.level} hp={hpA} maxHp={fa.maxHp} showNumbers />
         </div>
-        <FighterSide
-          person={b}
-          accent={accentB}
-          hp={bHp}
-          maxHp={bMax}
-          showHp={!!result}
-          onPick={() => setPicking('b')}
-          side="b"
-          active={playing && lastTurn?.attacker === 'b'}
-        />
+
+        {/* Painel inferior: mensagem OU menu de ataques */}
+        <div className="pkmn__ui">
+          {phase === 'choose' ? (
+            <div className="move-menu">
+              <div className="move-menu__moves">
+                {fa.moves.map((m, i) => {
+                  const out = pp[i] <= 0 && !allOut
+                  return (
+                    <button
+                      key={m.name}
+                      className={'move-cell' + (hover === i ? ' is-hover' : '')}
+                      disabled={out}
+                      onMouseEnter={() => setHover(i)}
+                      onFocus={() => setHover(i)}
+                      onClick={() => void playerMove(i)}
+                    >
+                      <span className="move-cell__cursor">{hover === i ? '▶' : ''}</span>
+                      {m.name}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="move-menu__side">
+                <div className="move-menu__pp">
+                  PP <b>{pp[hover] ?? 0}/{maxPP[hover] ?? 0}</b>
+                </div>
+                <div className="move-menu__type" style={{ color: pt.color }}>
+                  {pt.label.toUpperCase()}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="pkmn__msg">
+              <span>{message}</span>
+              {phase === 'busy' && <span className="pkmn__msg-caret">▼</span>}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Ação atual */}
-      {result && lastTurn && (
-        <ActionBanner
-          turn={lastTurn}
-          aName={a?.name ?? ''}
-          bName={b?.name ?? ''}
-        />
-      )}
-
-      {/* Vencedor */}
-      {finished && (
-        <div className="battle-winner">
-          {winnerName ? (
-            <>
-              <Trophy size={26} />
-              <span>
-                <strong>{winnerName}</strong> venceu!
-              </span>
-            </>
-          ) : (
-            <span>Empate renhido!</span>
-          )}
+      {phase === 'over' && (
+        <div className="battle-controls battle-controls--over">
+          <button className="btn btn--ghost" onClick={leaveBattle}>
+            <X size={16} /> Trocar
+          </button>
+          <button className="btn btn--primary" onClick={startBattle}>
+            <RotateCcw size={16} /> Revanche
+          </button>
         </div>
-      )}
-
-      {/* Controlos */}
-      {a && b && (
-        <div className="battle-controls">
-          {!result || finished ? (
-            <button className="btn btn--primary btn--fight" onClick={startFight}>
-              {finished ? (
-                <>
-                  <RotateCcw size={18} /> Repetir
-                </>
-              ) : (
-                <>
-                  <Swords size={18} /> Lutar!
-                </>
-              )}
-            </button>
-          ) : (
-            <button className="btn btn--ghost btn--fight" disabled>
-              A lutar…
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Log */}
-      {result && shownTurns.length > 0 && (
-        <div className="battle-log" ref={logRef}>
-          {shownTurns.map((t, i) => {
-            const name = t.attacker === 'a' ? a?.name : b?.name
-            const tt = getType(t.moveType)
-            return (
-              <div className="battle-log__row" key={i}>
-                <span
-                  className="battle-log__dot"
-                  style={{ background: t.attacker === 'a' ? accentA : accentB }}
-                />
-                <span className="battle-log__text">
-                  <strong>{name?.split(' ')[0]}</strong> usou{' '}
-                  <span style={{ color: tt.color, fontWeight: 800 }}>{t.moveName}</span>
-                  {t.category === 'estatuto' ? (
-                    <> e recuperou {t.heal} HP.</>
-                  ) : (
-                    <>
-                      {' '}— {t.damage} de dano.
-                      {t.note && (
-                        <em
-                          className={
-                            'battle-log__eff' +
-                            (t.effectiveness >= 2
-                              ? ' is-super'
-                              : t.effectiveness > 0 && t.effectiveness < 1
-                                ? ' is-weak'
-                                : t.effectiveness === 0
-                                  ? ' is-none'
-                                  : '')
-                          }
-                        >
-                          {' '}
-                          {t.note}
-                        </em>
-                      )}
-                    </>
-                  )}
-                  {t.fainted && <> 💥 KO!</>}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {!a || !b ? (
-        <p className="muted-block">Escolhe duas pessoas e vê quem ganha.</p>
-      ) : null}
-
-      {picking && (
-        <BattlePicker
-          people={people}
-          excludeId={picking === 'a' ? bId : aId}
-          onClose={() => setPicking(null)}
-          onSelect={pick}
-        />
       )}
     </div>
   )
 }
 
-function FighterSide({
-  person,
-  accent,
+function InfoBox({
+  className,
+  name,
+  level,
   hp,
   maxHp,
-  showHp,
+  showNumbers,
+}: {
+  className?: string
+  name: string
+  level: number
+  hp: number
+  maxHp: number
+  showNumbers?: boolean
+}) {
+  const pct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0
+  return (
+    <div className={'info-box' + (className ? ' ' + className : '')}>
+      <div className="info-box__top">
+        <span className="info-box__name">{name}</span>
+        <span className="info-box__lv">Nv{level}</span>
+      </div>
+      <div className="info-box__hprow">
+        <span className="info-box__hplabel">HP</span>
+        <div className="info-box__hptrack">
+          <div
+            className="info-box__hpfill"
+            style={{ width: `${pct * 100}%`, background: hpColor(pct) }}
+          />
+        </div>
+      </div>
+      {showNumbers && (
+        <div className="info-box__num">
+          {Math.max(0, hp)}/{maxHp}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SetupSlot({
+  person,
+  accent,
   onPick,
   side,
-  active,
 }: {
   person: Person | null
   accent: string
-  hp: number
-  maxHp: number
-  showHp: boolean
   onPick: () => void
   side: 'a' | 'b'
-  active: boolean
 }) {
-  const pct = maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0
-  const bst = person ? battleStatTotal(personBattleStats(person)) : 0
-
   if (!person) {
     return (
       <button className={'fighter fighter--' + side + ' fighter--empty'} onClick={onPick}>
@@ -285,17 +371,11 @@ function FighterSide({
       </button>
     )
   }
-
+  const bst = battleStatTotal(personBattleStats(person))
   return (
-    <div className={'fighter fighter--' + side + (active ? ' is-active' : '')}>
+    <div className={'fighter fighter--' + side}>
       <button className="fighter__avatar" onClick={onPick} aria-label="Trocar">
-        <Avatar
-          name={person.name}
-          type={person.types[0]}
-          avatarId={person.avatarId}
-          size={72}
-          ring
-        />
+        <Avatar name={person.name} type={person.types[0]} avatarId={person.avatarId} size={80} ring />
       </button>
       <span className="fighter__name">{person.name.split(' ')[0]}</span>
       <div className="fighter__types">
@@ -303,43 +383,8 @@ function FighterSide({
           <TypeBadge key={t} type={t} size="sm" />
         ))}
       </div>
-      {showHp ? (
-        <div className="hpbar">
-          <div className="hpbar__track">
-            <div
-              className="hpbar__fill"
-              style={{ width: `${pct * 100}%`, background: hpColor(pct) }}
-            />
-          </div>
-          <span className="hpbar__num">
-            {hp}/{maxHp}
-          </span>
-        </div>
-      ) : (
-        <span className="fighter__bst" style={{ color: accent }}>
-          {formatNumber(person.number)} · {bst} pts
-        </span>
-      )}
-    </div>
-  )
-}
-
-function ActionBanner({
-  turn,
-  aName,
-  bName,
-}: {
-  turn: BattleResult['turns'][number]
-  aName: string
-  bName: string
-}) {
-  const name = (turn.attacker === 'a' ? aName : bName).split(' ')[0]
-  const t = getType(turn.moveType)
-  return (
-    <div className="action-banner" style={{ borderColor: t.color }}>
-      <span className="action-banner__who">{name}</span>
-      <span className="action-banner__move" style={{ color: t.color }}>
-        {turn.moveName}
+      <span className="fighter__bst" style={{ color: accent }}>
+        {formatNumber(person.number)} · {bst} pts
       </span>
     </div>
   )

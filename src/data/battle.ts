@@ -696,3 +696,56 @@ export function simulateBattle(personA: Person, personB: Person): BattleResult {
     winner,
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Combate interativo (por turnos)                                     */
+/* ------------------------------------------------------------------ */
+
+/** PP (usos) de um ataque — golpes mais fortes têm menos usos. */
+export function moveMaxPp(move: Move): number {
+  if (move.category === 'estatuto') return 20
+  if (move.power <= 60) return 15
+  if (move.power <= 85) return 10
+  return 5
+}
+
+export interface MoveResult {
+  category: MoveCategory
+  damage: number
+  heal: number
+  effectiveness: number
+  fainted: boolean
+}
+
+/** Aplica UM ataque ao vivo (muta os lutadores) e devolve o que aconteceu.
+ *  Usado pelo ecrã de combate por turnos. */
+export function resolveMove(attacker: Fighter, defender: Fighter, move: Move): MoveResult {
+  if (move.category === 'estatuto') {
+    const heal = Math.round(attacker.maxHp * 0.15)
+    attacker.hp = Math.min(attacker.maxHp, attacker.hp + heal)
+    attacker.atkBuff = Math.min(1.6, attacker.atkBuff * 1.1)
+    return { category: 'estatuto', damage: 0, heal, effectiveness: 1, fainted: false }
+  }
+  const { dmg, eff } = damageOf(attacker, defender, move, 0.85 + Math.random() * 0.15)
+  defender.hp = Math.max(0, defender.hp - dmg)
+  return {
+    category: move.category,
+    damage: dmg,
+    heal: 0,
+    effectiveness: eff,
+    fainted: defender.hp <= 0,
+  }
+}
+
+/** Escolha da IA para o adversário. */
+export function aiChooseMove(attacker: Fighter, defender: Fighter): Move {
+  return chooseMove(attacker, defender)
+}
+
+/** Golpe de recurso quando ficam sem PP (tipo "Struggle"). */
+export const STRUGGLE: Move = {
+  name: 'Luta',
+  type: 'normal',
+  category: 'fisico',
+  power: 40,
+}
