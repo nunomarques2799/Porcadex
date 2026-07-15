@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react'
 import type { PublicPerson } from '../types'
 import { EMPTY_STATS } from '../types'
+import { normalizeBattle } from '../data/battle'
 import { supabase } from './supabase'
 
 function rowToPublicPerson(r: Record<string, unknown>): PublicPerson {
+  const stats = { ...EMPTY_STATS, ...((r.stats as Record<string, number>) ?? {}) }
+  const types =
+    Array.isArray(r.types) && (r.types as string[]).length
+      ? (r.types as string[])
+      : ['normal']
   return {
     id: String(r.id),
     owner: String(r.owner),
@@ -12,20 +18,19 @@ function rowToPublicPerson(r: Record<string, unknown>): PublicPerson {
     nickname: (r.nickname as string) || undefined,
     gender: (r.gender as PublicPerson['gender']) ?? undefined,
     relationship: (r.relationship as string) === 'sexo' ? 'sexo' : 'beijo',
-    types:
-      Array.isArray(r.types) && (r.types as string[]).length
-        ? (r.types as string[])
-        : ['normal'],
+    types,
     country: (r.country as string) || undefined,
     ball: (r.ball as string) || 'poke',
     legendary: Boolean(r.legendary),
     legendaryCats: Array.isArray(r.legendary_cats) ? (r.legendary_cats as string[]) : [],
     avatarId: (r.avatar_id as string) || undefined,
     rating: Number(r.rating ?? 0),
-    stats: { ...EMPTY_STATS, ...((r.stats as Record<string, number>) ?? {}) },
+    ratingCount: Number(r.rating_count ?? 0),
+    stats,
     traits: Array.isArray(r.traits) ? (r.traits as string[]) : [],
     favorite: Boolean(r.favorite),
     createdAt: r.created_at ? new Date(r.created_at as string).getTime() : Date.now(),
+    battle: normalizeBattle(r.battle, stats, types),
     instagram: (r.instagram as string) || undefined,
     location: (r.location as string) || undefined,
     since: (r.since as string) || undefined,

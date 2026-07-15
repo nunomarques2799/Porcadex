@@ -7,7 +7,7 @@ import { useAuth } from '../lib/auth'
 import { useFriends } from '../lib/friends'
 import { useUserProfile, cycleInfo, PHASE_META } from '../lib/userProfile'
 import type { Gender } from '../types'
-import { personLevelInfo, personXp, totalXp, levelInfo } from '../data/xp'
+import { totalXp, levelInfo } from '../data/xp'
 import { formatNumber, formatDate } from '../lib/utils'
 import { typeTheme } from '../data/pokeTypes'
 import { Avatar } from '../components/Avatar'
@@ -43,8 +43,8 @@ export function MeScreen() {
         return {
           person: p,
           encounters,
-          xp: personXp(p),
-          level: personLevelInfo(personXp(p)).level,
+          xp: p.battle.xp,
+          level: p.battle.level,
         }
       }),
     [people],

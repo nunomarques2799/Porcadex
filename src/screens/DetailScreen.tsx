@@ -4,7 +4,7 @@ import { ChevronLeft, Heart, Pencil, Crown, Zap, Lock } from 'lucide-react'
 import { usePeople } from '../store/people'
 import { typeTheme } from '../data/pokeTypes'
 import { legendaryLabel } from '../data/legendary'
-import { personLevelInfo, personXp } from '../data/xp'
+import { battleLevelInfo } from '../data/battle'
 import { STAT_META } from '../types'
 import { formatNumber } from '../lib/utils'
 import { Avatar } from '../components/Avatar'
@@ -48,7 +48,7 @@ export function DetailScreen() {
   }
 
   const theme = typeTheme(person.types[0])
-  const pLevel = personLevelInfo(personXp(person))
+  const pLevel = battleLevelInfo(person.battle.xp)
 
   return (
     <div className="detail" style={{ ['--accent' as string]: theme.accent }}>
@@ -154,7 +154,14 @@ export function DetailScreen() {
             <div className="stats-list">
               <div className="stats-overall">
                 <span>Avaliação geral</span>
-                <RatingStars value={person.rating} size={22} color={theme.accent} />
+                <span className="friend-rating__avg">
+                  <RatingStars value={person.rating} size={20} color={theme.accent} />
+                  <small>
+                    {person.ratingCount
+                      ? `${person.rating.toFixed(1)} · ${person.ratingCount} ${person.ratingCount === 1 ? 'voto' : 'votos'}`
+                      : 'ainda sem votos de amigos'}
+                  </small>
+                </span>
               </div>
               {STAT_META.map((s) => (
                 <StatBar key={s.key} label={s.label} value={person.stats[s.key]} />

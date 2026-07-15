@@ -9,6 +9,7 @@ import {
 } from 'react'
 import type { Person } from '../types'
 import { EMPTY_STATS } from '../types'
+import { initialBattleData, normalizeBattle } from '../data/battle'
 import { DEFAULT_HOME_ID } from '../data/countries'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
@@ -26,12 +27,16 @@ interface PeopleContextValue {
   toggleFavorite: (id: string) => Promise<void>
 }
 
-export type NewPerson = Omit<Person, 'id' | 'number' | 'createdAt'>
+// `battle` e `ratingCount` não se editam no formulário: os stats são semeados
+// à criação e evoluem por batalha; a avaliação vem dos amigos.
+export type NewPerson = Omit<Person, 'id' | 'number' | 'createdAt' | 'battle' | 'ratingCount'>
 
 const PeopleContext = createContext<PeopleContextValue | null>(null)
 
 /** Map a DB row into our client-side `Person` shape. */
 function rowToPerson(r: Record<string, unknown>): Person {
+  const stats = { ...EMPTY_STATS, ...((r.stats as Record<string, number>) ?? {}) }
+  const types = Array.isArray(r.types) && (r.types as string[]).length ? (r.types as string[]) : ['normal']
   return {
     id: String(r.id),
     number: Number(r.number),
@@ -40,7 +45,7 @@ function rowToPerson(r: Record<string, unknown>): Person {
     gender: (r.gender as Person['gender']) ?? undefined,
     private: Boolean(r.is_private),
     relationship: (r.relationship as string) === 'sexo' ? 'sexo' : 'beijo',
-    types: Array.isArray(r.types) && (r.types as string[]).length ? (r.types as string[]) : ['normal'],
+    types,
     country: (r.country as string) || undefined,
     ball: (r.ball as string) || 'poke',
     legendary: Boolean(r.legendary),
@@ -48,13 +53,15 @@ function rowToPerson(r: Record<string, unknown>): Person {
     avatarId: (r.avatar_id as string) || undefined,
     photoIds: Array.isArray(r.photo_ids) ? (r.photo_ids as string[]) : [],
     rating: Number(r.rating ?? 0),
-    stats: { ...EMPTY_STATS, ...((r.stats as Record<string, number>) ?? {}) },
+    ratingCount: Number(r.rating_count ?? 0),
+    stats,
     about: (r.about as Person['about']) ?? {},
     traits: Array.isArray(r.traits) ? (r.traits as string[]) : [],
     notes: (r.notes as string) ?? '',
     moments: Array.isArray(r.moments) ? (r.moments as Person['moments']) : [],
     favorite: Boolean(r.favorite),
     createdAt: r.created_at ? new Date(r.created_at as string).getTime() : Date.now(),
+    battle: normalizeBattle(r.battle, stats, types),
   }
 }
 
@@ -73,13 +80,15 @@ function personToRow(p: Partial<Person>): Record<string, unknown> {
   if (p.legendaryCats !== undefined) row.legendary_cats = p.legendaryCats
   if (p.avatarId !== undefined) row.avatar_id = p.avatarId ?? null
   if (p.photoIds !== undefined) row.photo_ids = p.photoIds
-  if (p.rating !== undefined) row.rating = p.rating
+  // `rating` é gerido pelo trigger (média das avaliações dos amigos) — o
+  // cliente nunca o escreve.
   if (p.stats !== undefined) row.stats = p.stats
   if (p.about !== undefined) row.about = p.about
   if (p.traits !== undefined) row.traits = p.traits
   if (p.notes !== undefined) row.notes = p.notes ?? ''
   if (p.moments !== undefined) row.moments = p.moments
   if (p.favorite !== undefined) row.favorite = p.favorite
+  if (p.battle !== undefined) row.battle = p.battle
   return row
 }
 
@@ -142,6 +151,8 @@ export function PeopleProvider({ children }: { children: ReactNode }) {
         ...personToRow(draft),
         owner: user.id,
         number,
+        // Semeia os stats de combate a partir da personalidade + tipo(s).
+        battle: initialBattleData(draft.stats, draft.types),
       }
       const { data, error } = await supabase
         .from('people')

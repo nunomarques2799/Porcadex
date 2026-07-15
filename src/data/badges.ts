@@ -21,6 +21,8 @@ import {
   ShieldAlert,
   VenetianMask,
   UserX,
+  Swords,
+  Skull,
 } from 'lucide-react'
 import type { Person } from '../types'
 import { totalXp, levelInfo } from './xp'
@@ -63,6 +65,9 @@ const personCheatCount = (p: Person[]) =>
   p.reduce((s, x) => s + x.moments.filter((m) => m.personCheated).length, 0)
 const cheatVictimsCount = (p: Person[]) =>
   p.filter((x) => x.moments.some((m) => m.personCheated)).length
+const totalWins = (p: Person[]) => p.reduce((s, x) => s + (x.battle?.wins ?? 0), 0)
+const maxBattleLevel = (p: Person[]) =>
+  p.reduce((m, x) => Math.max(m, x.battle?.level ?? 1), 1)
 
 export const BADGES: BadgeDef[] = [
   {
@@ -379,6 +384,52 @@ export const BADGES: BadgeDef[] = [
     color: '#B4204C',
     target: 5,
     value: (c) => cheatVictimsCount(c.people),
+  },
+  // --- Batalhas ---
+  {
+    id: 'first-win',
+    title: 'Primeira Vitória',
+    desc: 'Ganha 1 combate contra a pessoa de um amigo',
+    icon: Swords,
+    color: '#E4572E',
+    target: 1,
+    value: (c) => totalWins(c.people),
+  },
+  {
+    id: 'brawler',
+    title: 'Lutador',
+    desc: '10 combates ganhos',
+    icon: Swords,
+    color: '#C22E28',
+    target: 10,
+    value: (c) => totalWins(c.people),
+  },
+  {
+    id: 'gladiator',
+    title: 'Gladiador',
+    desc: '50 combates ganhos',
+    icon: Skull,
+    color: '#8E1836',
+    target: 50,
+    value: (c) => totalWins(c.people),
+  },
+  {
+    id: 'battle-veteran',
+    title: 'Veterano de Guerra',
+    desc: 'Leva uma pessoa ao nível 5 de combate',
+    icon: Trophy,
+    color: '#E0A62A',
+    target: 5,
+    value: (c) => maxBattleLevel(c.people),
+  },
+  {
+    id: 'battle-legend',
+    title: 'Campeão',
+    desc: 'Leva uma pessoa ao nível 10 de combate',
+    icon: Trophy,
+    color: '#B8860B',
+    target: 10,
+    value: (c) => maxBattleLevel(c.people),
   },
 ]
 

@@ -1,11 +1,12 @@
 import type { Person } from '../types'
+import { initialBattleData } from './battle'
 import { uid } from '../lib/utils'
 
 // A few example entries shown on first run so the app isn't empty. The user
 // can delete them at any time; they're only inserted once.
 export function seedPeople(): Person[] {
   const now = Date.now()
-  return [
+  const base: Omit<Person, 'battle'>[] = [
     {
       id: uid(),
       number: 1,
@@ -102,4 +103,5 @@ export function seedPeople(): Person[] {
       createdAt: now - 1000,
     },
   ]
+  return base.map((p) => ({ ...p, battle: initialBattleData(p.stats, p.types) }))
 }

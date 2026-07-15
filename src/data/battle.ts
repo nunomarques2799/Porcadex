@@ -1,12 +1,11 @@
 // Sistema de combate estilo Pokémon.
 //
-// Tudo aqui é DERIVADO da pessoa (tipo, características e stats de
-// personalidade) — não é guardado na base de dados. Isto significa que
-// funciona retroativamente para toda a gente e mantém-se sempre em sincronia
-// com o perfil. Serve de fundação para as batalhas entre pessoas no futuro.
+// Cada pessoa tem os seus PRÓPRIOS 6 stats de combate (guardados em
+// person.battle.base) e um nível que sobe ganhando XP em batalhas contra
+// pessoas de outros users. Ao subir de nível ganha pontos para reforçar um
+// stat à escolha. Estes stats alimentam o dano dos moves.
 
-import type { Person, StatKey } from '../types'
-import { personLevelInfo, personXp } from './xp'
+import type { Person, StatKey, Stats, BattleStats, BattleData } from '../types'
 
 /* ------------------------------------------------------------------ */
 /* Stats de batalha                                                    */
@@ -14,9 +13,9 @@ import { personLevelInfo, personXp } from './xp'
 
 export type BattleStatKey = 'hp' | 'atk' | 'def' | 'spa' | 'spd' | 'spe'
 
-/** Cada stat de batalha nasce de um dos 6 stats de personalidade e é depois
- *  moldado pelo(s) tipo(s) da pessoa — tal como cada espécie de Pokémon tem
- *  o seu próprio perfil de stats. */
+/** Metadados dos 6 stats de combate. `from` é o stat de personalidade usado
+ *  APENAS para semear os stats iniciais de uma pessoa nova; depois disso os
+ *  stats de combate são próprios e sobem por nível. */
 export const BATTLE_STAT_META: {
   key: BattleStatKey
   label: string
@@ -64,23 +63,146 @@ export interface BattleStat {
 const clamp = (n: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, n))
 
-/** Calcula as 6 stats de batalha da pessoa. Intervalo ~15–170. */
-export function personBattleStats(person: Person): BattleStat[] {
-  const types = person.types.length ? person.types : ['normal']
-  return BATTLE_STAT_META.map((meta) => {
-    const base = person.stats[meta.from] ?? 50 // 0–100
-    // Modificador médio dos tipos para esta stat.
+/** Semeia os 6 stats de combate iniciais a partir da personalidade + tipo(s).
+ *  Usado só à criação (ou para pessoas antigas ainda sem `battle`). A partir
+ *  daí os stats são próprios e sobem por nível. */
+export function deriveInitialBase(stats: Stats, types: string[]): BattleStats {
+  const t = types.length ? types : ['normal']
+  const out = {} as BattleStats
+  for (const meta of BATTLE_STAT_META) {
+    const base = stats[meta.from] ?? 50 // 0–100
     const mod =
-      types.reduce((sum, t) => sum + (TYPE_STAT_MODS[t]?.[meta.key] ?? 0), 0) /
-      types.length
-    const value = clamp(Math.round(35 + base * 0.85 + mod), 15, 170)
-    return { key: meta.key, label: meta.label, short: meta.short, value }
-  })
+      t.reduce((sum, ty) => sum + (TYPE_STAT_MODS[ty]?.[meta.key] ?? 0), 0) / t.length
+    out[meta.key] = clamp(Math.round(35 + base * 0.85 + mod), 15, 170)
+  }
+  return out
+}
+
+/** Cria os dados de combate iniciais de uma pessoa (nível 1). */
+export function initialBattleData(stats: Stats, types: string[]): BattleData {
+  return { base: deriveInitialBase(stats, types), level: 1, xp: 0, points: 0, wins: 0, losses: 0 }
+}
+
+/** Normaliza o `battle` vindo da BD (semeia a partir da personalidade se
+ *  faltar, e garante os 6 stats). Partilhado pelo store e pelas pessoas de
+ *  amigos. */
+export function normalizeBattle(raw: unknown, stats: Stats, types: string[]): BattleData {
+  const r = (raw ?? {}) as Partial<BattleData>
+  if (!r.base) return initialBattleData(stats, types)
+  const seed = deriveInitialBase(stats, types)
+  const base = { ...seed, ...r.base }
+  return {
+    base: { hp: base.hp, atk: base.atk, def: base.def, spa: base.spa, spd: base.spd, spe: base.spe },
+    level: Number(r.level ?? 1) || 1,
+    xp: Number(r.xp ?? 0) || 0,
+    points: Number(r.points ?? 0) || 0,
+    wins: Number(r.wins ?? 0) || 0,
+    losses: Number(r.losses ?? 0) || 0,
+  }
+}
+
+/** As 6 stats de combate guardadas da pessoa (para mostrar). */
+export function personBattleStats(person: { battle: BattleData }): BattleStat[] {
+  const b = person.battle.base
+  return BATTLE_STAT_META.map((meta) => ({
+    key: meta.key,
+    label: meta.label,
+    short: meta.short,
+    value: b[meta.key],
+  }))
 }
 
 /** Soma das 6 stats — o "Base Stat Total" da pessoa. */
 export function battleStatTotal(stats: BattleStat[]): number {
   return stats.reduce((sum, s) => sum + s.value, 0)
+}
+
+/* ------------------------------------------------------------------ */
+/* Progressão (XP / nível / pontos de stat)                            */
+/* ------------------------------------------------------------------ */
+
+/** 1 ponto de stat por nível; cada ponto reforça o stat em +5. */
+export const STAT_POINTS_PER_LEVEL = 1
+export const STAT_POINT_VALUE = 5
+
+export interface BattleLevelInfo {
+  level: number
+  xp: number
+  into: number
+  span: number
+  toNext: number
+  progress: number // 0–1
+}
+
+/** Curva triangular de XP de combate. L1:0, L2:50, L3:150, L4:300… */
+function battleXpToReach(level: number): number {
+  return Math.round(25 * (level - 1) * level)
+}
+
+export function battleLevelInfo(xp: number): BattleLevelInfo {
+  let level = 1
+  while (battleXpToReach(level + 1) <= xp) level++
+  const base = battleXpToReach(level)
+  const next = battleXpToReach(level + 1)
+  return {
+    level,
+    xp,
+    into: xp - base,
+    span: next - base,
+    toNext: next - xp,
+    progress: (xp - base) / (next - base),
+  }
+}
+
+/** XP ganho ao vencer uma pessoa de nível `loserLevel`. */
+export function xpForWin(loserLevel: number): number {
+  return 30 + loserLevel * 15
+}
+
+export interface BattleReward {
+  xpGain: number
+  leveledTo: number | null // novo nível se subiu, senão null
+  pointsGained: number
+}
+
+/** Aplica o resultado de uma batalha (só conta XP quando é cross-user).
+ *  Devolve o novo BattleData e o resumo da recompensa. */
+export function applyBattleResult(
+  battle: BattleData,
+  won: boolean,
+  opponentLevel: number,
+): { battle: BattleData; reward: BattleReward } {
+  if (!won) {
+    return {
+      battle: { ...battle, losses: battle.losses + 1 },
+      reward: { xpGain: 0, leveledTo: null, pointsGained: 0 },
+    }
+  }
+  const xpGain = xpForWin(opponentLevel)
+  const newXp = battle.xp + xpGain
+  const oldLevel = battle.level
+  const newLevel = battleLevelInfo(newXp).level
+  const pointsGained = Math.max(0, newLevel - oldLevel) * STAT_POINTS_PER_LEVEL
+  return {
+    battle: {
+      ...battle,
+      xp: newXp,
+      level: newLevel,
+      points: battle.points + pointsGained,
+      wins: battle.wins + 1,
+    },
+    reward: { xpGain, leveledTo: newLevel > oldLevel ? newLevel : null, pointsGained },
+  }
+}
+
+/** Gasta 1 ponto para reforçar um stat em +STAT_POINT_VALUE. */
+export function allocatePoint(battle: BattleData, key: BattleStatKey): BattleData {
+  if (battle.points <= 0) return battle
+  return {
+    ...battle,
+    base: { ...battle.base, [key]: battle.base[key] + STAT_POINT_VALUE },
+    points: battle.points - 1,
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -424,10 +546,25 @@ function shuffle<T>(arr: T[], rnd: () => number): T[] {
   return a
 }
 
+/** Dados mínimos para construir um lutador (serve Person e PublicPerson). */
+export type FighterSource = {
+  id: string
+  number: number
+  name: string
+  types: string[]
+  traits: string[]
+  battle: BattleData
+}
+
 /** Os 4 ataques da pessoa: até 2 assinaturas das características, o resto do
  *  movepool do(s) tipo(s), com prioridade ao tipo primário. Determinístico
  *  (estável entre recargas) mas único por pessoa. */
-export function personMoves(person: Person): Move[] {
+export function personMoves(person: {
+  id: string
+  number: number
+  traits: string[]
+  types: string[]
+}): Move[] {
   const seed = hashSeed(person.id || `n${person.number}`)
   const rnd = mulberry32(seed)
 
@@ -529,32 +666,22 @@ export interface Fighter {
   atkBuff: number // acumula com ataques de estatuto
 }
 
-/** Constrói um lutador a partir de uma pessoa: stats de batalha escalados pelo
- *  nível (mais momentos = mais forte) e os seus 4 ataques. */
-export function buildFighter(person: Person): Fighter {
-  const stats = personBattleStats(person)
-  const raw: Record<BattleStatKey, number> = {
-    hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0,
-  }
-  stats.forEach((s) => {
-    raw[s.key] = s.value
-  })
-  const level = personLevelInfo(personXp(person)).level
-  const m = 1 + (level - 1) * 0.06 // bónus de nível
-  const lv = (v: number) => Math.round(v * m)
-  const maxHp = Math.round(raw.hp * 4 * m)
+/** Constrói um lutador a partir dos stats de combate guardados da pessoa. */
+export function buildFighter(person: FighterSource): Fighter {
+  const b = person.battle.base
+  const maxHp = Math.round(b.hp * 4)
   return {
     id: person.id,
     name: person.name,
     types: person.types.length ? person.types : ['normal'],
-    level,
+    level: person.battle.level,
     maxHp,
     hp: maxHp,
-    atk: lv(raw.atk),
-    def: lv(raw.def),
-    spa: lv(raw.spa),
-    spd: lv(raw.spd),
-    spe: lv(raw.spe),
+    atk: b.atk,
+    def: b.def,
+    spa: b.spa,
+    spd: b.spd,
+    spe: b.spe,
     moves: personMoves(person),
     atkBuff: 1,
   }

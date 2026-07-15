@@ -28,6 +28,41 @@ export interface Moment {
 /** Biological/social sex used both for the app's user and each entry. */
 export type Gender = 'M' | 'F' | 'O'
 
+/** The six Pokémon-style combat stats stored per person. */
+export interface BattleStats {
+  hp: number
+  atk: number
+  def: number
+  spa: number
+  spd: number
+  spe: number
+}
+
+/** Per-person battle progression. XP comes ONLY from battles vs other users'
+ *  people; a person starts at level 1. Points are spent to raise a stat of
+ *  the user's choice on each level-up. */
+export interface BattleData {
+  base: BattleStats
+  level: number
+  xp: number
+  points: number // unspent stat points
+  wins: number
+  losses: number
+}
+
+export const EMPTY_BATTLE_BASE: BattleStats = {
+  hp: 70,
+  atk: 70,
+  def: 70,
+  spa: 70,
+  spd: 70,
+  spe: 70,
+}
+
+export function emptyBattleData(): BattleData {
+  return { base: { ...EMPTY_BATTLE_BASE }, level: 1, xp: 0, points: 0, wins: 0, losses: 0 }
+}
+
 /** A single entry in the Porcadex — one person you have a relationship with. */
 export interface Person {
   id: string
@@ -61,6 +96,10 @@ export interface Person {
   moments: Moment[]
   favorite: boolean
   createdAt: number
+  /** Combat stats + battle progression. */
+  battle: BattleData
+  /** How many friends have rated this person (rating is their average). */
+  ratingCount?: number
 }
 
 export const STAT_META: { key: StatKey; label: string }[] = [
@@ -104,8 +143,10 @@ export type PublicPerson = Pick<
   | 'traits'
   | 'favorite'
   | 'createdAt'
+  | 'battle'
 > & {
   owner: string
+  ratingCount?: number
   // Subconjunto de `about` que um amigo pode ver no perfil da pessoa.
   instagram?: string
   location?: string

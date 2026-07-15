@@ -4,7 +4,6 @@ import type { Person, PublicPerson } from '../types'
 import { typeTheme } from '../data/pokeTypes'
 import { countryName } from '../data/countries'
 import { formatNumber } from '../lib/utils'
-import { personLevelInfo, personXp, publicPersonXp } from '../data/xp'
 import { Avatar } from './Avatar'
 import { TypeBadge } from './TypeBadge'
 import { RelBadge } from './RelBadge'
@@ -21,10 +20,8 @@ interface Props {
 export function PersonCard({ person, linkBase = '/person', ownerId }: Props) {
   const theme = typeTheme(person.types[0])
   const country = countryName(person.country)
-  // moments only exist on the private `Person` shape; friends' PublicPerson
-  // has no moment history to draw from.
-  const xp = 'moments' in person ? personXp(person as Person) : publicPersonXp(person)
-  const level = personLevelInfo(xp).level
+  // Nível de combate da pessoa (sobe ganhando batalhas).
+  const level = person.battle.level
   const isPrivate = 'private' in person ? Boolean((person as Person).private) : false
 
   return (

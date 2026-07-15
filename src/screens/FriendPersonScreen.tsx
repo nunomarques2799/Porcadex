@@ -2,9 +2,10 @@ import { useMemo } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, Crown, Zap, ArrowLeftRight, Instagram, MapPin, Calendar } from 'lucide-react'
 import { useFriendPeople, useFriendProfile } from '../lib/friendPeople'
+import { useMyRating } from '../lib/ratings'
 import { typeTheme } from '../data/pokeTypes'
 import { legendaryLabel } from '../data/legendary'
-import { personLevelInfo, publicPersonXp } from '../data/xp'
+import { battleLevelInfo } from '../data/battle'
 import { STAT_META } from '../types'
 import { formatDate, formatNumber, instagramLink } from '../lib/utils'
 import { Avatar } from '../components/Avatar'
@@ -19,6 +20,7 @@ export function FriendPersonScreen() {
   const navigate = useNavigate()
   const { people, loading } = useFriendPeople(friendId)
   const { profile } = useFriendProfile(friendId)
+  const { myRating, rate } = useMyRating(personId)
 
   const person = useMemo(() => people.find((p) => p.id === personId), [people, personId])
 
@@ -40,7 +42,7 @@ export function FriendPersonScreen() {
   }
 
   const theme = typeTheme(person.types[0])
-  const pLevel = personLevelInfo(publicPersonXp(person))
+  const pLevel = battleLevelInfo(person.battle.xp)
 
   return (
     <div className="detail" style={{ ['--accent' as string]: theme.accent }}>
@@ -115,7 +117,18 @@ export function FriendPersonScreen() {
           <div className="stats-list">
             <div className="stats-overall">
               <span>Avaliação geral</span>
-              <RatingStars value={person.rating} size={22} color={theme.accent} />
+              <span className="friend-rating__avg">
+                <RatingStars value={person.rating} size={20} color={theme.accent} />
+                <small>
+                  {person.ratingCount
+                    ? `${person.rating.toFixed(1)} · ${person.ratingCount} ${person.ratingCount === 1 ? 'voto' : 'votos'}`
+                    : 'sem votos'}
+                </small>
+              </span>
+            </div>
+            <div className="friend-rating__mine">
+              <span>A tua avaliação</span>
+              <RatingStars value={myRating} size={26} color={theme.accent} onChange={(v) => void rate(v)} />
             </div>
             {STAT_META.map((s) => (
               <StatBar key={s.key} label={s.label} value={person.stats[s.key]} />

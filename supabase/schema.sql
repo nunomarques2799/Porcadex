@@ -190,6 +190,10 @@ create table if not exists public.people (
 
 create index if not exists people_owner_idx on public.people(owner);
 
+-- Backfill para schemas anteriores.
+alter table public.people add column if not exists battle jsonb default '{}'::jsonb;
+alter table public.people add column if not exists rating_count int default 0;
+
 alter table public.people enable row level security;
 
 drop policy if exists "people_select_own" on public.people;
@@ -217,6 +221,82 @@ create policy "people_select_friends" on public.people
   );
 
 -- ------------------------------------------------------------------
+-- ratings: friends rate each other's people. The person's `rating` column
+-- is kept as the AVERAGE of these via a trigger, and `rating_count` as the
+-- number of raters.
+-- ------------------------------------------------------------------
+create table if not exists public.ratings (
+  rater uuid not null references auth.users(id) on delete cascade,
+  target uuid not null references public.people(id) on delete cascade,
+  stars numeric not null check (stars >= 0 and stars <= 5),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  primary key (rater, target)
+);
+
+create index if not exists ratings_target_idx on public.ratings(target);
+
+alter table public.ratings enable row level security;
+
+-- Owner of the rated person (used by RLS + validation).
+create or replace function public.person_owner(p uuid)
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select owner from public.people where id = p;
+$$;
+
+drop policy if exists "ratings_select" on public.ratings;
+drop policy if exists "ratings_insert" on public.ratings;
+drop policy if exists "ratings_update" on public.ratings;
+drop policy if exists "ratings_delete" on public.ratings;
+
+-- You can read your own ratings, and the owner can read all ratings of their
+-- people (to see who rated). The average is exposed to friends via the view.
+create policy "ratings_select" on public.ratings
+  for select using (
+    auth.uid() = rater or auth.uid() = public.person_owner(target)
+  );
+-- Only a friend of the owner (and not the owner) can rate a person.
+create policy "ratings_insert" on public.ratings
+  for insert with check (
+    auth.uid() = rater
+    and public.person_owner(target) <> auth.uid()
+    and public.are_friends(auth.uid(), public.person_owner(target))
+  );
+create policy "ratings_update" on public.ratings
+  for update using (auth.uid() = rater)
+  with check (auth.uid() = rater);
+create policy "ratings_delete" on public.ratings
+  for delete using (auth.uid() = rater);
+
+-- Recompute the target person's average rating + count on any change.
+create or replace function public.recompute_person_rating()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  tgt uuid := coalesce(new.target, old.target);
+begin
+  update public.people p
+     set rating = coalesce((select avg(stars) from public.ratings where target = tgt), 0),
+         rating_count = (select count(*) from public.ratings where target = tgt)
+   where p.id = tgt;
+  return null;
+end;
+$$;
+
+drop trigger if exists ratings_recompute on public.ratings;
+create trigger ratings_recompute
+  after insert or update or delete on public.ratings
+  for each row execute function public.recompute_person_rating();
+
+-- ------------------------------------------------------------------
 -- Public views: what a friend is allowed to see about you and your people.
 -- security_invoker=on so the underlying table RLS applies.
 -- ------------------------------------------------------------------
@@ -228,12 +308,18 @@ as
 
 grant select on public.public_profiles to authenticated, anon;
 
-create or replace view public.public_people
+-- Drop + create (em vez de "create or replace") porque adicionámos colunas:
+-- o Postgres não deixa reordenar/renomear colunas de uma view existente, só
+-- acrescentar no fim. Dropar é seguro — é só uma view, sem dados.
+drop view if exists public.public_people;
+create view public.public_people
 with (security_invoker = on)
 as
   select id, owner, number, name, nickname, gender, relationship,
          types, country, ball, legendary, legendary_cats, avatar_id,
          rating, stats, traits, favorite, created_at,
+         -- Colunas novas acrescentadas no fim.
+         rating_count, battle,
          -- Subconjunto de `about` visível para amigos (não expõe telefone,
          -- aniversário nem como se conheceram).
          about->>'instagram' as instagram,

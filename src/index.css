@@ -814,9 +814,50 @@ img {
 }
 .battle-stat {
   display: grid;
-  grid-template-columns: 96px 34px 1fr;
+  grid-template-columns: 92px 34px 1fr auto;
   align-items: center;
   gap: 10px;
+}
+.battle-stat__plus {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  color: #fff;
+  box-shadow: var(--shadow-soft);
+}
+
+/* Nível de combate: barra de XP + pontos a distribuir */
+.combat__xpbar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+.combat__xpfill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.combat__xptext {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.combat__points {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.combat .detail__level-badge {
+  color: #fff;
 }
 .battle-stat__label {
   font-size: 13.5px;
@@ -3170,6 +3211,43 @@ select.input {
 
 .battle-controls--over {
   gap: 12px;
+}
+.battle-reward {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 14px 16px 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f5c451, #f0902a);
+  color: #3a2400;
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.friend-rating__avg {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.friend-rating__avg small {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.friend-rating__mine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--bg);
+  font-weight: 700;
+  font-size: 13.5px;
 }
 
 .battle-controls {
