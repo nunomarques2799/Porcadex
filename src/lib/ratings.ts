@@ -2,20 +2,20 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
 
-/** A minha avaliação (0–5) para a pessoa de um amigo, com submissão. A média
- *  fica em people.rating (recalculada por trigger na BD). */
+/** A avaliação (0–5) que EU dei à pessoa de um amigo, com submissão explícita.
+ *  A média fica em people.rating (recalculada por trigger na BD). */
 export function useMyRating(personId: string | undefined): {
-  myRating: number
-  rate: (stars: number) => Promise<void>
+  saved: number
   loading: boolean
+  submit: (stars: number) => Promise<{ error?: string }>
 } {
   const { user } = useAuth()
-  const [myRating, setMyRating] = useState(0)
+  const [saved, setSaved] = useState(0)
   const [loading, setLoading] = useState<boolean>(!!personId)
 
   useEffect(() => {
     if (!supabase || !personId || !user) {
-      setMyRating(0)
+      setSaved(0)
       setLoading(false)
       return
     }
@@ -29,7 +29,7 @@ export function useMyRating(personId: string | undefined): {
       .maybeSingle()
       .then(({ data }) => {
         if (!active) return
-        setMyRating(data ? Number((data as { stars: number }).stars) : 0)
+        setSaved(data ? Number((data as { stars: number }).stars) : 0)
         setLoading(false)
       })
     return () => {
@@ -37,14 +37,20 @@ export function useMyRating(personId: string | undefined): {
     }
   }, [personId, user])
 
-  const rate = useCallback(
-    async (stars: number) => {
-      if (!supabase || !personId || !user) return
-      setMyRating(stars) // otimista
-      await supabase.from('ratings').upsert({ rater: user.id, target: personId, stars })
+  const submit = useCallback(
+    async (stars: number): Promise<{ error?: string }> => {
+      if (!supabase) return { error: 'Sem ligação' }
+      if (!user) return { error: 'Sem sessão' }
+      if (!personId) return { error: 'Pessoa inválida' }
+      const { error } = await supabase
+        .from('ratings')
+        .upsert({ rater: user.id, target: personId, stars })
+      if (error) return { error: error.message }
+      setSaved(stars)
+      return {}
     },
     [personId, user],
   )
 
-  return { myRating, rate, loading }
+  return { saved, loading, submit }
 }

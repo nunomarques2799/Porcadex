@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Crown, Zap, ArrowLeftRight, Instagram, MapPin, Calendar } from 'lucide-react'
+import { ChevronLeft, Crown, Zap, ArrowLeftRight, Instagram, MapPin, Calendar, Check } from 'lucide-react'
 import { useFriendPeople, useFriendProfile } from '../lib/friendPeople'
 import { useMyRating } from '../lib/ratings'
 import { typeTheme } from '../data/pokeTypes'
@@ -20,7 +20,23 @@ export function FriendPersonScreen() {
   const navigate = useNavigate()
   const { people, loading } = useFriendPeople(friendId)
   const { profile } = useFriendProfile(friendId)
-  const { myRating, rate } = useMyRating(personId)
+  const { saved, submit } = useMyRating(personId)
+
+  const [draft, setDraft] = useState(0)
+  const [rateStatus, setRateStatus] = useState<'idle' | 'saving' | 'ok' | 'error'>('idle')
+  const [rateErr, setRateErr] = useState('')
+  useEffect(() => setDraft(saved), [saved])
+
+  const onSubmitRating = async () => {
+    setRateStatus('saving')
+    const r = await submit(draft)
+    if (r.error) {
+      setRateStatus('error')
+      setRateErr(r.error)
+    } else {
+      setRateStatus('ok')
+    }
+  }
 
   const person = useMemo(() => people.find((p) => p.id === personId), [people, personId])
 
@@ -127,8 +143,42 @@ export function FriendPersonScreen() {
               </span>
             </div>
             <div className="friend-rating__mine">
-              <span>A tua avaliação</span>
-              <RatingStars value={myRating} size={26} color={theme.accent} onChange={(v) => void rate(v)} />
+              <div className="friend-rating__mine-row">
+                <span>A tua avaliação</span>
+                <RatingStars
+                  value={draft}
+                  size={26}
+                  color={theme.accent}
+                  onChange={(v) => {
+                    setDraft(v)
+                    setRateStatus('idle')
+                  }}
+                />
+              </div>
+              <button
+                className="btn btn--primary btn--sm friend-rating__save"
+                style={{ background: theme.accent }}
+                disabled={draft === 0 || draft === saved || rateStatus === 'saving'}
+                onClick={() => void onSubmitRating()}
+              >
+                {rateStatus === 'saving'
+                  ? 'A guardar…'
+                  : rateStatus === 'ok' && draft === saved
+                    ? 'Avaliação guardada ✓'
+                    : draft === saved && saved > 0
+                      ? 'Avaliação guardada ✓'
+                      : 'Guardar avaliação'}
+              </button>
+              {rateStatus === 'ok' && (
+                <p className="friend-rating__msg friend-rating__msg--ok">
+                  <Check size={14} /> Obrigado pela avaliação!
+                </p>
+              )}
+              {rateStatus === 'error' && (
+                <p className="friend-rating__msg friend-rating__msg--err">
+                  Não foi possível guardar: {rateErr}
+                </p>
+              )}
             </div>
             {STAT_META.map((s) => (
               <StatBar key={s.key} label={s.label} value={person.stats[s.key]} />

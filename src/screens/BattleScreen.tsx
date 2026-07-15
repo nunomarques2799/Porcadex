@@ -69,6 +69,8 @@ export function BattleScreen() {
   const [message, setMessage] = useState('')
   const [rewardMsg, setRewardMsg] = useState<string | null>(null)
   const [hover, setHover] = useState(0)
+  const [hit, setHit] = useState<'a' | 'b' | null>(null)
+  const [dmgPop, setDmgPop] = useState<{ side: 'a' | 'b'; amount: number; key: number } | null>(null)
 
   useEffect(() => () => void (runId.current++), [])
 
@@ -101,6 +103,8 @@ export function BattleScreen() {
     setMaxPP(fA.current.moves.map(moveMaxPp))
     setRewardMsg(null)
     setHover(0)
+    setHit(null)
+    setDmgPop(null)
     setStarted(true)
     void runIntro(my)
   }
@@ -111,6 +115,8 @@ export function BattleScreen() {
     setPhase('choose')
     setRewardMsg(null)
     setMessage('')
+    setHit(null)
+    setDmgPop(null)
   }
 
   const pick = (ref: Ref) => {
@@ -184,6 +190,12 @@ export function BattleScreen() {
       const res = resolveMove(atk, def, mv)
       setHpA(av.hp)
       setHpB(bv.hp)
+      if (mv.category !== 'estatuto' && res.damage > 0) {
+        const defSide: 'a' | 'b' = who === 'a' ? 'b' : 'a'
+        setHit(defSide)
+        setDmgPop({ side: defSide, amount: res.damage, key: Date.now() })
+        setTimeout(() => setHit((h) => (h === defSide ? null : h)), 450)
+      }
       await sleep(520)
       if (runId.current !== my) return
 
@@ -291,14 +303,32 @@ export function BattleScreen() {
       <div className="pkmn">
         <div className="pkmn__scene">
           <InfoBox className="pkmn__info pkmn__info--foe" name={fb.name} level={fb.level} hp={hpB} maxHp={fb.maxHp} showNumbers />
-          <div className={'pkmn__mon pkmn__mon--foe' + (hpB <= 0 ? ' is-fainted' : '')}>
+          <div
+            className={
+              'pkmn__mon pkmn__mon--foe' +
+              (hpB <= 0 ? ' is-fainted' : '') +
+              (hit === 'b' ? ' is-hit' : '')
+            }
+          >
             <div className="pkmn__platform" />
             <Avatar name={fb.name} type={fb.types[0]} avatarId={b?.avatarId} ownerId={bOwnerId} size={96} ring />
+            {dmgPop?.side === 'b' && (
+              <span className="dmg-pop" key={dmgPop.key}>-{dmgPop.amount}</span>
+            )}
           </div>
 
-          <div className={'pkmn__mon pkmn__mon--ally' + (hpA <= 0 ? ' is-fainted' : '')}>
+          <div
+            className={
+              'pkmn__mon pkmn__mon--ally' +
+              (hpA <= 0 ? ' is-fainted' : '') +
+              (hit === 'a' ? ' is-hit' : '')
+            }
+          >
             <div className="pkmn__platform" />
             <Avatar name={fa.name} type={fa.types[0]} avatarId={a?.avatarId} size={112} ring />
+            {dmgPop?.side === 'a' && (
+              <span className="dmg-pop" key={dmgPop.key}>-{dmgPop.amount}</span>
+            )}
           </div>
           <InfoBox className="pkmn__info pkmn__info--ally" name={fa.name} level={fa.level} hp={hpA} maxHp={fa.maxHp} showNumbers />
         </div>
@@ -309,17 +339,19 @@ export function BattleScreen() {
               <div className="move-menu__moves">
                 {fa.moves.map((m, i) => {
                   const out = pp[i] <= 0 && !allOut
+                  const mt = getType(m.type)
                   return (
                     <button
                       key={m.name}
                       className={'move-cell' + (hover === i ? ' is-hover' : '')}
+                      style={{ ['--mv' as string]: mt.color }}
                       disabled={out}
                       onMouseEnter={() => setHover(i)}
                       onFocus={() => setHover(i)}
                       onClick={() => void playerMove(i)}
                     >
-                      <span className="move-cell__cursor">{hover === i ? '▶' : ''}</span>
-                      {m.name}
+                      <span className="move-cell__dot" style={{ background: mt.color }} />
+                      <span className="move-cell__name">{m.name}</span>
                     </button>
                   )
                 })}
