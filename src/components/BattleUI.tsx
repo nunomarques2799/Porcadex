@@ -1,5 +1,6 @@
 // Peças visuais partilhadas pelo combate vs CPU e pelo combate ao vivo (PvP).
 
+import { useEffect, useRef, useState } from 'react'
 import { getType } from '../data/pokeTypes'
 import { moveMaxPp, type Fighter, type TeamState } from '../data/battle'
 import { TypeBadge } from './TypeBadge'
@@ -9,6 +10,69 @@ export function hpColor(pct: number): string {
   if (pct > 0.5) return '#58d860'
   if (pct > 0.2) return '#f8d030'
   return '#f85038'
+}
+
+/** Quanto tempo a barra demora a escorrer, por ponto de HP perdido, e o teto.
+ *  Golpes maiores demoram mais — é o que dá o peso à pancada. */
+const HP_MS_PER_POINT = 9
+const HP_MS_MIN = 320
+const HP_MS_MAX = 1500
+
+/** O HP a MOSTRAR, que escorre até ao valor real em vez de saltar.
+ *  Animado em JS (e não por transition no CSS) para o número acompanhar a
+ *  barra — ver o número saltar enquanto a barra desliza é o que fazia o
+ *  combate parecer instantâneo.
+ *
+ *  `key` identifica o lutador: ao trocar de pessoa o HP salta, senão
+ *  estaríamos a interpolar entre a vida de dois lutadores diferentes. */
+export function useDrainingHp(hp: number, key: string): number {
+  const [shown, setShown] = useState(hp)
+  const from = useRef(hp)
+  const who = useRef(key)
+  const raf = useRef(0)
+
+  useEffect(() => {
+    if (who.current !== key) {
+      who.current = key
+      from.current = hp
+      setShown(hp)
+      return
+    }
+    if (from.current === hp) return
+
+    // Quem pediu menos movimento não fica com a barra a escorrer.
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      from.current = hp
+      setShown(hp)
+      return
+    }
+
+    const start = from.current
+    const delta = Math.abs(start - hp)
+    const dur = Math.min(HP_MS_MAX, Math.max(HP_MS_MIN, delta * HP_MS_PER_POINT))
+    const t0 = performance.now()
+
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - t0) / dur)
+      const eased = 1 - Math.pow(1 - p, 3)
+      const value = Math.round(start + (hp - start) * eased)
+      from.current = value // interrompida a meio, continua de onde ia
+      setShown(value)
+      if (p < 1) raf.current = requestAnimationFrame(tick)
+      else from.current = hp
+    }
+    cancelAnimationFrame(raf.current)
+    raf.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf.current)
+  }, [hp, key])
+
+  return shown
+}
+
+/** Quanto tempo a barra vai demorar a mostrar este dano — para o ecrã de
+ *  combate esperar por ela antes de seguir para a próxima mensagem. */
+export function hpDrainMs(damage: number): number {
+  return Math.min(HP_MS_MAX, Math.max(HP_MS_MIN, damage * HP_MS_PER_POINT))
 }
 
 /** As bolinhas que mostram quantos da equipa ainda estão de pé. */
@@ -42,7 +106,8 @@ export function InfoBox({
   team: TeamState
   showNumbers?: boolean
 }) {
-  const pct = f.maxHp > 0 ? Math.max(0, Math.min(1, f.hp / f.maxHp)) : 0
+  const hp = useDrainingHp(f.hp, f.id)
+  const pct = f.maxHp > 0 ? Math.max(0, Math.min(1, hp / f.maxHp)) : 0
   return (
     <div className={'info-box' + (className ? ' ' + className : '')}>
       <div className="info-box__top">
@@ -69,7 +134,7 @@ export function InfoBox({
         </div>
         {showNumbers && (
           <span className="info-box__num">
-            {Math.max(0, f.hp)}/{f.maxHp}
+            {Math.max(0, hp)}/{f.maxHp}
           </span>
         )}
       </div>

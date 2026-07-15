@@ -3280,10 +3280,13 @@ select.input {
   background: #4a4a4a;
   overflow: hidden;
 }
+/* Sem transition na largura: o valor já é animado em JS (useDrainingHp), para
+   o número escorrer ao mesmo ritmo da barra. Transicionar aqui também punha
+   as duas animações a lutar uma com a outra. */
 .info-box__hpfill {
   height: 100%;
   border-radius: 999px;
-  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1), background 0.3s ease;
+  transition: background 0.3s ease;
 }
 .info-box__num {
   flex-shrink: 0;

@@ -1,9 +1,15 @@
 // Soundtrack e efeitos do combate.
 //
-// Os ficheiros vivem em `public/audio/` e NÃO estão no repositório — mete lá
-// os teus (ver public/audio/README.md). Tudo aqui é tolerante a ficheiros em
-// falta: se um som não existir, o combate corre na mesma, em silêncio. É por
-// isso que não há `import` dos ficheiros — seria erro de build se faltassem.
+// Os ficheiros vivem em `src/audio/` (ver o README lá dentro). Tudo aqui é
+// tolerante a ficheiros em falta: se um som não existir, o combate corre na
+// mesma, em silêncio.
+//
+// A lista de ficheiros vem do glob do Vite, resolvido em BUILD-TIME. Antes
+// isto sondava a rede à procura de `hit.mp3`, `hit1.mp3`… e adivinhava pelos
+// 404s, o que obrigava a numerar as variantes de forma seguida (`victory1`,
+// `victory2`) — pôr `victory` + `victory2` fazia a segunda ser ignorada em
+// silêncio. Assim sabemos exatamente o que existe: qualquer numeração serve,
+// e não se gasta um único pedido a procurar.
 
 import { useCallback, useEffect, useState } from 'react'
 
@@ -28,9 +34,8 @@ export const SFX = {
 export type MusicKey = (typeof MUSIC)[keyof typeof MUSIC]
 export type SfxKey = (typeof SFX)[keyof typeof SFX]
 
-// Extensões tentadas por ordem. O browser escolhe a primeira que sabe tocar,
-// por isso podes largar .mp3 OU .m4a OU .ogg sem mexer em código.
-const EXTS = ['mp3', 'm4a', 'ogg', 'wav']
+/** Preferência entre formatos, se houver o mesmo som em vários. */
+const EXT_RANK: Record<string, number> = { mp3: 0, m4a: 1, ogg: 2, wav: 3 }
 
 const MUTE_KEY = 'porcadex.audio.muted'
 const VOL_KEY = 'porcadex.audio.volume'
@@ -43,62 +48,75 @@ export function getVolume(): number {
   return Number.isFinite(raw) && raw >= 0 && raw <= 1 ? raw : 0.5
 }
 
-/** `import.meta.env.BASE_URL` respeita o `base: './'` do Vite (GitHub Pages). */
-function srcFor(name: string, ext: string): string {
-  const base = import.meta.env.BASE_URL || '/'
-  return `${base}audio/${name}.${ext}`.replace(/([^:])\/\/+/g, '$1/')
-}
+/** Todos os áudios em src/audio/, resolvidos pelo Vite em build-time. O valor
+ *  é só o URL final — o ficheiro só é descarregado quando se toca. */
+const FILES = import.meta.glob('../audio/*.{mp3,m4a,ogg,wav}', {
+  query: '?url',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>
 
-/** Cache de quais nomes existem, para não repetir 404s a cada golpe. */
-const resolved = new Map<string, string | null>()
+/** `victory2.mp3` → nome "victory", variante 2. Sem número → variante 0. */
+const FILE_RE = /^(.+?)(\d*)\.(mp3|m4a|ogg|wav)$/i
 
-/** Descobre a primeira extensão que carrega. `null` = som não existe. */
-function resolve(name: string): Promise<string | null> {
-  const hit = resolved.get(name)
-  if (hit !== undefined) return Promise.resolve(hit)
+/** name → URLs das variantes, por ordem de número. Construído uma vez. */
+const variantsOf: Map<string, string[]> = (() => {
+  const seen = new Map<string, Map<number, { url: string; rank: number }>>()
 
-  const tryNext = (i: number): Promise<string | null> => {
-    if (i >= EXTS.length) return Promise.resolve(null)
-    const url = srcFor(name, EXTS[i])
-    return new Promise<string | null>((done) => {
-      const probe = new Audio()
-      probe.preload = 'auto'
-      const ok = () => {
-        cleanup()
-        done(url)
-      }
-      const fail = () => {
-        cleanup()
-        done(null)
-      }
-      const cleanup = () => {
-        probe.removeEventListener('canplaythrough', ok)
-        probe.removeEventListener('loadedmetadata', ok)
-        probe.removeEventListener('error', fail)
-        probe.src = ''
-      }
-      probe.addEventListener('loadedmetadata', ok, { once: true })
-      probe.addEventListener('error', fail, { once: true })
-      probe.src = url
-    }).then((found) => (found ? found : tryNext(i + 1)))
+  for (const [path, url] of Object.entries(FILES)) {
+    const file = path.replace(/^.*\//, '')
+    const m = FILE_RE.exec(file)
+    if (!m) continue
+    const [, name, num, ext] = m
+    const idx = num ? Number(num) : 0
+    const rank = EXT_RANK[ext.toLowerCase()] ?? 99
+
+    const byIdx = seen.get(name) ?? new Map()
+    const cur = byIdx.get(idx)
+    // Mesmo som em dois formatos (hit.mp3 + hit.ogg): fica o preferido.
+    if (!cur || rank < cur.rank) byIdx.set(idx, { url, rank })
+    seen.set(name, byIdx)
   }
 
-  const p = tryNext(0).then((url) => {
-    resolved.set(name, url)
-    return url
-  })
-  return p
+  const out = new Map<string, string[]>()
+  for (const [name, byIdx] of seen) {
+    const urls = [...byIdx.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([, v]) => v.url)
+    out.set(name, urls)
+  }
+  return out
+})()
+
+/** Onde vai a rotação de cada som. */
+const cursor = new Map<string, number>()
+
+/** A próxima variante, à vez — alternar em vez de sortear evita que o mesmo
+ *  som saia duas vezes seguidas, que é o ponto de ter variantes. */
+function pick(name: string): string | null {
+  const urls = variantsOf.get(name)
+  if (!urls || !urls.length) return null
+  const i = (cursor.get(name) ?? -1) + 1
+  cursor.set(name, i)
+  return urls[i % urls.length]
+}
+
+/** Quantas variantes existem de um som (0 = não há ficheiro). Útil para
+ *  diagnosticar sem abrir o Network. */
+export function variantCount(name: string): number {
+  return variantsOf.get(name)?.length ?? 0
 }
 
 let music: HTMLAudioElement | null = null
 let musicKey: MusicKey | null = null
 
-/** Toca uma faixa de fundo. Repetir a mesma faixa não a reinicia. */
+/** Toca uma faixa de fundo. Repetir a mesma faixa não a reinicia — quando
+ *  muda, escolhe a variante seguinte (victory1 → victory2 → victory1…). */
 export async function playMusic(key: MusicKey, { loop = true } = {}): Promise<void> {
   if (musicKey === key && music && !music.paused) return
   stopMusic()
   if (isMuted()) return
-  const url = await resolve(key)
+  const url = pick(key)
   if (!url) return
   const el = new Audio(url)
   el.loop = loop
@@ -126,15 +144,15 @@ export function setMusicVolume(v: number): void {
   if (music) music.volume = v
 }
 
-/** Toca um efeito. Fire-and-forget: sobrepõe-se a si próprio sem cortar. */
+/** Toca um efeito, alternando entre as variantes que existirem.
+ *  Fire-and-forget: sobrepõe-se a si próprio sem cortar. */
 export function playSfx(key: SfxKey): void {
   if (isMuted()) return
-  void resolve(key).then((url) => {
-    if (!url) return
-    const el = new Audio(url)
-    el.volume = Math.min(1, getVolume() * 1.3)
-    void el.play().catch(() => undefined)
-  })
+  const url = pick(key)
+  if (!url) return
+  const el = new Audio(url)
+  el.volume = Math.min(1, getVolume() * 1.3)
+  void el.play().catch(() => undefined)
 }
 
 /** Estado de som partilhado pela UI (botão de mute + volume). */

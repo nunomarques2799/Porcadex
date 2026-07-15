@@ -42,13 +42,27 @@ import {
 } from '../data/battle'
 import { Avatar } from '../components/Avatar'
 import { TypeBadge } from '../components/TypeBadge'
-import { InfoBox, MoveMenu, SwitchMenu } from '../components/BattleUI'
+import { InfoBox, MoveMenu, SwitchMenu, hpDrainMs } from '../components/BattleUI'
 import { TeamPicker, type TeamSource } from '../components/TeamPicker'
 
 type Mode = 'cpu' | 'friend'
 /** `forced` = o meu lutador caiu e tenho de mandar outro. */
 type Phase = 'busy' | 'choose' | 'switching' | 'forced' | 'over'
 type AnyPerson = Person | PublicPerson
+
+/** Ritmo do combate, em ms. Sobe estes números para abrandar ainda mais.
+ *  O tempo da barra de HP não está aqui: é proporcional ao dano
+ *  (ver `hpDrainMs` em components/BattleUI). */
+const PACE = {
+  /** Quanto tempo fica cada mensagem no ecrã. */
+  say: 1250,
+  intro: 1050,
+  /** Espera até ao momento do impacto da investida antes de aplicar o dano. */
+  impact: 240,
+  /** Respiro depois de a barra assentar. */
+  settle: 500,
+  faint: 1350,
+}
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 const first = (n: string) => n.split(' ')[0]
@@ -124,7 +138,7 @@ export function BattleScreen() {
     }
   }, [])
 
-  const say = async (text: string, my: number, ms = 1050) => {
+  const say = async (text: string, my: number, ms = PACE.say) => {
     setMessage(text)
     await sleep(ms)
     return runId.current === my
@@ -137,8 +151,8 @@ export function BattleScreen() {
     const foeName = first(activeOf(tB.current!).name)
     const myName = first(activeOf(tA.current!).name)
     if (
-      !(await say(`${foeName} quer combater!`, my, 950)) ||
-      !(await say(`Vai, ${myName}!`, my, 850))
+      !(await say(`${foeName} quer combater!`, my, PACE.intro)) ||
+      !(await say(`Vai, ${myName}!`, my, PACE.intro))
     )
       return
     setPhase('choose')
@@ -227,8 +241,13 @@ export function BattleScreen() {
 
     if (!(await say(`${first(atk.name)} usou ${mv.name}!`, my))) return false
 
+    // A investida arranca primeiro e o golpe só entra no momento do impacto —
+    // aplicar o dano ao mesmo tempo que a animação começava fazia a vida cair
+    // antes de o lutador lá chegar.
     setStriking(who)
     setTimeout(() => setStriking((s) => (s === who ? null : s)), 380)
+    await sleep(PACE.impact)
+    if (runId.current !== my) return false
 
     const res = resolveMove(atk, def, mv)
     bump()
@@ -241,7 +260,10 @@ export function BattleScreen() {
       playSfx(res.effectiveness >= 2 ? SFX.super : res.effectiveness < 1 ? SFX.weak : SFX.hit)
       setTimeout(() => setHit((h) => (h === defSide ? null : h)), 450)
     }
-    await sleep(520)
+
+    // Esperar que a barra acabe de escorrer antes de seguir para a próxima
+    // mensagem — senão o texto passava por cima da vida ainda a descer.
+    await sleep(hpDrainMs(res.damage || res.heal) + PACE.settle)
     if (runId.current !== my) return false
 
     if (mv.category === 'estatuto') {
@@ -253,7 +275,7 @@ export function BattleScreen() {
 
     if (res.fainted) {
       playSfx(SFX.faint)
-      if (!(await say(`${first(def.name)} foi derrotado/a!`, my, 950))) return false
+      if (!(await say(`${first(def.name)} foi derrotado/a!`, my, PACE.faint))) return false
       if (!teamAlive(defTeam)) {
         finish(who)
         return false
