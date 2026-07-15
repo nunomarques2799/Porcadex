@@ -49,10 +49,15 @@ export function InfoBox({
         <span className="info-box__name">{f.name.split(' ')[0]}</span>
         <span className="info-box__lv">Nv{f.level}</span>
       </div>
-      <div className="info-box__types">
-        {f.types.map((t) => (
-          <TypeBadge key={t} type={t} size="xs" />
-        ))}
+      {/* Tipos e bolinhas partilham a linha: a caixa flutua sobre a arena e
+          cada linha extra empurra-a para cima do lutador. */}
+      <div className="info-box__meta">
+        <span className="info-box__types">
+          {f.types.map((t) => (
+            <TypeBadge key={t} type={t} size="xs" />
+          ))}
+        </span>
+        <TeamDots team={team} />
       </div>
       <div className="info-box__hprow">
         <span className="info-box__hplabel">HP</span>
@@ -62,13 +67,12 @@ export function InfoBox({
             style={{ width: `${pct * 100}%`, background: hpColor(pct) }}
           />
         </div>
+        {showNumbers && (
+          <span className="info-box__num">
+            {Math.max(0, f.hp)}/{f.maxHp}
+          </span>
+        )}
       </div>
-      {showNumbers && (
-        <div className="info-box__num">
-          {Math.max(0, f.hp)}/{f.maxHp}
-        </div>
-      )}
-      <TeamDots team={team} />
     </div>
   )
 }

@@ -3134,13 +3134,13 @@ select.input {
   z-index: 1;
 }
 .pkmn__mon--foe {
-  top: 7%;
-  right: 8%;
+  top: 8%;
+  right: 7%;
   animation: mon-in-right 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .pkmn__mon--ally {
-  bottom: 3%;
-  left: 7%;
+  bottom: 4%;
+  left: 6%;
   animation: mon-in-left 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 @keyframes mon-in-right {
@@ -3209,8 +3209,11 @@ select.input {
 /* Caixas de info (nome / nível / HP) */
 .info-box {
   position: absolute;
-  min-width: 168px;
-  padding: 7px 11px 8px;
+  /* Percentagem sem min-width: um mínimo fixo fazia a caixa tocar no lutador
+     em ecrãs de 320px. Prefere-se truncar o nome a sobrepor. */
+  width: 44%;
+  max-width: 190px;
+  padding: 6px 9px 7px;
   background: #f6f6e9;
   border: 2.5px solid #2f2f37;
   border-radius: 8px;
@@ -3218,12 +3221,12 @@ select.input {
   z-index: 2;
 }
 .pkmn__info--foe {
-  top: 6%;
-  left: 4%;
+  top: 4%;
+  left: 3%;
 }
 .pkmn__info--ally {
-  bottom: 5%;
-  right: 4%;
+  bottom: 4%;
+  right: 3%;
 }
 .info-box__top {
   display: flex;
@@ -3233,31 +3236,46 @@ select.input {
 }
 .info-box__name {
   font-weight: 900;
-  font-size: 14px;
+  font-size: 13.5px;
   color: #303030;
   text-transform: uppercase;
   letter-spacing: 0.02em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .info-box__lv {
   font-weight: 800;
-  font-size: 12.5px;
+  font-size: 12px;
   color: #303030;
+  flex-shrink: 0;
+}
+/* Tipos à esquerda, bolinhas da equipa à direita — uma linha só. */
+.info-box__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 2px 0 1px;
+  min-height: 12px;
 }
 .info-box__hprow {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 5px;
+  gap: 5px;
+  margin-top: 4px;
 }
 .info-box__hplabel {
   font-weight: 900;
   font-style: italic;
-  font-size: 11px;
+  font-size: 10px;
   color: #e6a012;
 }
 .info-box__hptrack {
   flex: 1;
-  height: 7px;
+  min-width: 0;
+  height: 6px;
   border-radius: 999px;
   background: #4a4a4a;
   overflow: hidden;
@@ -3268,9 +3286,8 @@ select.input {
   transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1), background 0.3s ease;
 }
 .info-box__num {
-  margin-top: 3px;
-  text-align: right;
-  font-size: 11.5px;
+  flex-shrink: 0;
+  font-size: 10px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   color: #303030;
@@ -3279,11 +3296,11 @@ select.input {
 /* Painel inferior: mensagem OU menu de ataques */
 .pkmn__ui {
   margin-top: 8px;
-  min-height: 104px;
+  min-height: 112px;
 }
 .pkmn__msg,
 .move-menu {
-  min-height: 104px;
+  min-height: 112px;
   background: #f6f6e9;
   border: 3px solid #2f2f37;
   border-radius: 12px;
@@ -3310,25 +3327,28 @@ select.input {
   }
 }
 
+/* minmax(0, …) em vez de 1fr: uma track de grid tem min-width:auto, por isso
+   um nome de ataque comprido ("Chuva de Beijos") alargava a coluna e fazia o
+   painel transbordar para fora do ecrã. */
 .move-menu {
   display: grid;
-  grid-template-columns: 1fr 132px;
-  padding: 6px;
+  grid-template-columns: minmax(0, 1fr) 84px;
+  padding: 5px;
 }
 .move-menu__moves {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-auto-rows: 1fr;
-  gap: 2px;
-  padding: 6px;
+  gap: 3px;
+  padding: 4px;
 }
 .move-cell {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 8px 9px;
+  gap: 6px;
+  padding: 7px 8px;
   font-weight: 800;
-  font-size: 13.5px;
+  font-size: 12.5px;
   color: #303030;
   text-align: left;
   border-radius: 9px;
@@ -3352,33 +3372,44 @@ select.input {
   border-radius: 50%;
   flex-shrink: 0;
 }
+/* Duas linhas em vez de reticências: os nomes desta app são compridos
+   ("Cavalgada Descontrolada") e cortá-los a meio não dizia nada. */
 .move-cell__name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
 }
 .move-menu__side {
   border-left: 2.5px solid #2f2f37;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 10px;
-  padding: 10px 12px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+  min-width: 0;
+  text-align: center;
 }
 .move-menu__pp {
   font-weight: 700;
-  font-size: 13px;
+  font-size: 11px;
   color: #5a5a5a;
+  white-space: nowrap;
 }
 .move-menu__pp b {
   color: #303030;
-  font-size: 15px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 .move-menu__type {
   font-weight: 900;
-  font-size: 15px;
-  letter-spacing: 0.03em;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
 }
 
 .battle-controls--over {
@@ -3564,6 +3595,11 @@ select.input {
 
 .pkmn__scene {
   border-color: #23242c;
+  /* Altura fixa em vez de aspect-ratio: as caixas de info flutuam sobre a
+     arena e precisam de espaço garantido, senão sobrepõem-se aos lutadores
+     em ecrãs estreitos. */
+  aspect-ratio: auto;
+  height: clamp(250px, 40vh, 340px);
   background: linear-gradient(
     180deg,
     #5b7fd4 0%,
@@ -3590,21 +3626,35 @@ select.input {
   50% { opacity: 1; }
 }
 
-/* Montanhas + linha do horizonte */
+/* Colinas ao longe, assentes na linha do horizonte (51% do gradiente do céu).
+   Elipses em vez de triângulos cónicos: leem-se como colinas em qualquer
+   largura, sem depender de ângulos que se deformam com o tamanho. */
 .pkmn__scene::after {
   content: '';
   position: absolute;
   left: 0;
   right: 0;
-  top: 34%;
-  height: 20%;
+  top: 30%;
+  height: 21%;
   pointer-events: none;
   z-index: 0;
-  background:
-    linear-gradient(180deg, transparent 62%, rgba(255, 255, 255, 0.22) 63%, transparent 66%),
-    conic-gradient(from 135deg at 22% 100%, transparent 0 25%, rgba(72, 104, 78, 0.75) 25% 50%, transparent 50%),
-    conic-gradient(from 135deg at 58% 100%, transparent 0 25%, rgba(58, 88, 66, 0.7) 25% 50%, transparent 50%),
-    conic-gradient(from 135deg at 86% 100%, transparent 0 25%, rgba(80, 112, 84, 0.6) 25% 50%, transparent 50%);
+  background-repeat: no-repeat;
+  background-position: bottom;
+  background-image:
+    radial-gradient(42% 74% at 18% 100%, #5c8460 0 99%, transparent 100%),
+    radial-gradient(52% 100% at 46% 100%, #446a4c 0 99%, transparent 100%),
+    radial-gradient(38% 62% at 78% 100%, #587f5c 0 99%, transparent 100%),
+    radial-gradient(46% 52% at 97% 100%, #4d7454 0 99%, transparent 100%),
+    linear-gradient(180deg, transparent 96%, rgba(255, 255, 255, 0.3) 97%, transparent 100%);
+}
+
+:root[data-theme='dark'] .pkmn__scene::after {
+  background-image:
+    radial-gradient(42% 74% at 18% 100%, #2b3a52 0 99%, transparent 100%),
+    radial-gradient(52% 100% at 46% 100%, #1e2b41 0 99%, transparent 100%),
+    radial-gradient(38% 62% at 78% 100%, #29374e 0 99%, transparent 100%),
+    radial-gradient(46% 52% at 97% 100%, #223047 0 99%, transparent 100%),
+    linear-gradient(180deg, transparent 96%, rgba(180, 200, 255, 0.22) 97%, transparent 100%);
 }
 
 :root[data-theme='dark'] .pkmn__scene {
