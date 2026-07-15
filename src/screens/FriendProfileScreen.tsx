@@ -1,9 +1,12 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Zap, Users } from 'lucide-react'
+import { ChevronLeft, Zap, Users, Swords } from 'lucide-react'
 import { useFriendPeople, useFriendProfile } from '../lib/friendPeople'
 import { publicTotalXp, levelInfo } from '../data/xp'
 import { PersonCard } from '../components/PersonCard'
+import { MyPersonPicker } from '../components/MyPersonPicker'
+import { challengeFriend } from '../lib/battles'
+import type { Person } from '../types'
 import { useHomeCountry } from '../lib/settings'
 
 export function FriendProfileScreen() {
@@ -12,6 +15,13 @@ export function FriendProfileScreen() {
   const { profile, loading: profLoading } = useFriendProfile(friendId)
   const { people, loading: peopleLoading } = useFriendPeople(friendId)
   const [myHome] = useHomeCountry()
+  const [challenging, setChallenging] = useState(false)
+
+  const onChallenge = async (person: Person) => {
+    setChallenging(false)
+    const r = await challengeFriend(person, friendId)
+    if (r.id) navigate(`/battle/live/${r.id}`)
+  }
 
   // Use the friend's own home country when possible for the trainer level
   // calculation; fall back to ours.
@@ -82,13 +92,27 @@ export function FriendProfileScreen() {
           )}
         </section>
 
+        <button
+          className="btn btn--primary friend-compare-cta"
+          onClick={() => setChallenging(true)}
+        >
+          <Swords size={17} /> Desafiar {profile?.name?.split(' ')[0] || 'amigo'}
+        </button>
         <Link
           to={`/compare?friend=${friendId}`}
-          className="btn btn--primary friend-compare-cta"
+          className="btn btn--ghost friend-compare-cta"
         >
           Comparar com uma tua
         </Link>
       </div>
+
+      {challenging && (
+        <MyPersonPicker
+          title="Escolhe quem vai lutar"
+          onClose={() => setChallenging(false)}
+          onSelect={(p) => void onChallenge(p)}
+        />
+      )}
     </div>
   )
 }

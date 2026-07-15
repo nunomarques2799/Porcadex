@@ -297,6 +297,71 @@ create trigger ratings_recompute
   for each row execute function public.recompute_person_rating();
 
 -- ------------------------------------------------------------------
+-- battles: PvP em tempo real entre dois users.
+-- O `setup` guarda o snapshot (freeze) dos dois lutadores; `turns` a lista de
+-- jogadas concluídas; `move_a`/`move_b` a escolha atual de cada lado (colunas
+-- separadas para não haver clobber quando ambos escrevem em simultâneo). Cada
+-- cliente reconstrói o estado a partir de setup+turns (determinístico).
+-- ------------------------------------------------------------------
+create table if not exists public.battles (
+  id uuid primary key default gen_random_uuid(),
+  challenger uuid not null references auth.users(id) on delete cascade,
+  challenger_person uuid not null references public.people(id) on delete cascade,
+  opponent uuid not null references auth.users(id) on delete cascade,
+  opponent_person uuid references public.people(id) on delete set null,
+  status text not null default 'pending'
+    check (status in ('pending', 'active', 'finished', 'declined', 'cancelled')),
+  seed bigint not null default 0,
+  setup jsonb not null default '{}'::jsonb,
+  turns jsonb not null default '[]'::jsonb,
+  move_a int,
+  move_b int,
+  winner uuid,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  check (challenger <> opponent)
+);
+
+create index if not exists battles_opponent_idx on public.battles(opponent, status);
+create index if not exists battles_challenger_idx on public.battles(challenger, status);
+
+alter table public.battles enable row level security;
+
+drop policy if exists "battles_select" on public.battles;
+drop policy if exists "battles_insert" on public.battles;
+drop policy if exists "battles_update" on public.battles;
+drop policy if exists "battles_delete" on public.battles;
+
+create policy "battles_select" on public.battles
+  for select using (auth.uid() in (challenger, opponent));
+-- Só o desafiante cria, contra um amigo, com a sua própria pessoa.
+create policy "battles_insert" on public.battles
+  for insert with check (
+    auth.uid() = challenger
+    and status = 'pending'
+    and public.are_friends(auth.uid(), opponent)
+    and public.person_owner(challenger_person) = auth.uid()
+  );
+-- Ambos os participantes podem atualizar (jogadas, aceitar, etc.).
+create policy "battles_update" on public.battles
+  for update using (auth.uid() in (challenger, opponent))
+  with check (auth.uid() in (challenger, opponent));
+create policy "battles_delete" on public.battles
+  for delete using (auth.uid() in (challenger, opponent));
+
+-- Realtime: publicar alterações da tabela e enviar linha completa nos eventos.
+alter table public.battles replica identity full;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+     where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'battles'
+  ) then
+    alter publication supabase_realtime add table public.battles;
+  end if;
+end $$;
+
+-- ------------------------------------------------------------------
 -- Public views: what a friend is allowed to see about you and your people.
 -- security_invoker=on so the underlying table RLS applies.
 -- ------------------------------------------------------------------

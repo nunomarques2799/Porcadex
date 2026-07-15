@@ -844,24 +844,28 @@ export interface MoveResult {
   fainted: boolean
 }
 
-/** Aplica UM ataque ao vivo (muta os lutadores) e devolve o que aconteceu.
- *  Usado pelo ecrã de combate por turnos. */
-export function resolveMove(attacker: Fighter, defender: Fighter, move: Move): MoveResult {
+/** Aplica UM ataque (muta os lutadores). `variance` (0.85–1.0) permite modo
+ *  determinístico (PvP) ou aleatório (vs IA). */
+function applyMove(
+  attacker: Fighter,
+  defender: Fighter,
+  move: Move,
+  variance: number,
+): MoveResult {
   if (move.category === 'estatuto') {
     const heal = Math.round(attacker.maxHp * 0.15)
     attacker.hp = Math.min(attacker.maxHp, attacker.hp + heal)
     attacker.atkBuff = Math.min(1.6, attacker.atkBuff * 1.1)
     return { category: 'estatuto', damage: 0, heal, effectiveness: 1, fainted: false }
   }
-  const { dmg, eff } = damageOf(attacker, defender, move, 0.85 + Math.random() * 0.15)
+  const { dmg, eff } = damageOf(attacker, defender, move, variance)
   defender.hp = Math.max(0, defender.hp - dmg)
-  return {
-    category: move.category,
-    damage: dmg,
-    heal: 0,
-    effectiveness: eff,
-    fainted: defender.hp <= 0,
-  }
+  return { category: move.category, damage: dmg, heal: 0, effectiveness: eff, fainted: defender.hp <= 0 }
+}
+
+/** Aplica UM ataque ao vivo (variância aleatória). Usado no combate vs IA. */
+export function resolveMove(attacker: Fighter, defender: Fighter, move: Move): MoveResult {
+  return applyMove(attacker, defender, move, 0.85 + Math.random() * 0.15)
 }
 
 /** Escolha da IA para o adversário. */
@@ -875,4 +879,111 @@ export const STRUGGLE: Move = {
   type: 'normal',
   category: 'fisico',
   power: 40,
+}
+
+/* ------------------------------------------------------------------ */
+/* PvP determinístico (batalha sincronizada entre 2 users)             */
+/* ------------------------------------------------------------------ */
+
+/** Estado imutável de um lutador, guardado no `setup` da batalha (freeze dos
+ *  stats no início). Reconstruído em Fighter para o replay. */
+export type FighterSnapshot = Omit<Fighter, 'hp' | 'atkBuff'>
+
+export function fighterSnapshot(source: FighterSource): FighterSnapshot {
+  const f = buildFighter(source)
+  return {
+    id: f.id,
+    name: f.name,
+    types: f.types,
+    level: f.level,
+    maxHp: f.maxHp,
+    atk: f.atk,
+    def: f.def,
+    spa: f.spa,
+    spd: f.spd,
+    spe: f.spe,
+    moves: f.moves,
+  }
+}
+
+/** Um turno PvP concluído: o índice do ataque escolhido por cada lado. */
+export interface PvpTurn {
+  a: number
+  b: number
+}
+
+export interface PvpLogEntry {
+  turn: number
+  who: 'a' | 'b'
+  moveName: string
+  moveType: string
+  category: MoveCategory
+  damage: number
+  heal: number
+  effectiveness: number
+  aHp: number
+  bHp: number
+  fainted: boolean
+}
+
+export interface PvpState {
+  a: Fighter
+  b: Fighter
+  log: PvpLogEntry[]
+  finished: boolean
+  winner: 'a' | 'b' | null
+}
+
+function snapshotToFighter(s: FighterSnapshot): Fighter {
+  return { ...s, hp: s.maxHp, atkBuff: 1 }
+}
+
+/** Reconstrói o estado atual da batalha a partir do setup + lista de turnos
+ *  concluídos. DETERMINÍSTICO: ambos os clientes obtêm exatamente o mesmo
+ *  resultado (mesmo seed → mesma variância). */
+export function replayPvp(
+  setup: { a: FighterSnapshot; b: FighterSnapshot },
+  seed: number,
+  turns: PvpTurn[],
+): PvpState {
+  const a = snapshotToFighter(setup.a)
+  const b = snapshotToFighter(setup.b)
+  const log: PvpLogEntry[] = []
+  let winner: 'a' | 'b' | null = null
+
+  for (let ti = 0; ti < turns.length && !winner; ti++) {
+    const rng = mulberry32((seed >>> 0) + ti * 2654435761)
+    const mvA = a.moves[turns[ti].a] ?? STRUGGLE
+    const mvB = b.moves[turns[ti].b] ?? STRUGGLE
+    const aFirst = a.spe > b.spe || (a.spe === b.spe && rng() < 0.5)
+    const order: { who: 'a' | 'b'; mv: Move }[] = aFirst
+      ? [{ who: 'a', mv: mvA }, { who: 'b', mv: mvB }]
+      : [{ who: 'b', mv: mvB }, { who: 'a', mv: mvA }]
+
+    for (const { who, mv } of order) {
+      const atk = who === 'a' ? a : b
+      const def = who === 'a' ? b : a
+      if (atk.hp <= 0) continue
+      const res = applyMove(atk, def, mv, 0.85 + rng() * 0.15)
+      log.push({
+        turn: ti,
+        who,
+        moveName: mv.name,
+        moveType: mv.type,
+        category: res.category,
+        damage: res.damage,
+        heal: res.heal,
+        effectiveness: res.effectiveness,
+        aHp: a.hp,
+        bHp: b.hp,
+        fainted: res.fainted,
+      })
+      if (def.hp <= 0) {
+        winner = who
+        break
+      }
+    }
+  }
+
+  return { a, b, log, finished: !!winner, winner }
 }

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Plus, Heart, X, Sun, Moon, BarChart3, Crown, ArrowLeftRight, User, Users, Lock, Swords } from 'lucide-react'
+import { Search, Plus, Heart, X, Sun, Moon, BarChart3, Crown, ArrowLeftRight, User, Users, Lock, Swords, Bell } from 'lucide-react'
 import { usePeople } from '../store/people'
+import { useIncomingChallenges } from '../lib/battles'
 import { useTheme } from '../lib/theme'
 import { useHomeCountry } from '../lib/settings'
 import { countryName } from '../data/countries'
@@ -15,6 +16,7 @@ export function ListScreen() {
   const { people } = usePeople()
   const { theme, toggle } = useTheme()
   const [home] = useHomeCountry()
+  const { challenges } = useIncomingChallenges()
   const level = levelInfo(totalXp(people, home)).level
   const [query, setQuery] = useState('')
   const [dex, setDex] = useState<Dex>('todos')
@@ -68,6 +70,10 @@ export function ListScreen() {
             </Link>
             <Link to="/battle" className="theme-toggle" aria-label="Combate">
               <Swords size={20} />
+            </Link>
+            <Link to="/challenges" className="theme-toggle theme-toggle--badge" aria-label="Desafios">
+              <Bell size={20} />
+              {challenges.length > 0 && <span className="notif-badge">{challenges.length}</span>}
             </Link>
             <Link to="/stats" className="theme-toggle" aria-label="Estatísticas">
               <BarChart3 size={20} />
