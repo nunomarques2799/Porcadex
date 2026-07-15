@@ -2,6 +2,7 @@ import { HashRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { AuthProvider, useAuth } from './lib/auth'
 import { PeopleProvider } from './store/people'
 import { BottomNav } from './components/BottomNav'
+import { BadgeToast } from './components/BadgeToast'
 import { ListScreen } from './screens/ListScreen'
 import { DetailScreen } from './screens/DetailScreen'
 import { EditScreen } from './screens/EditScreen'
@@ -36,6 +37,8 @@ function Gate() {
     <PeopleProvider>
       <HashRouter>
         <div className="app">
+          {/* Fora das Routes: um badge pode cair em qualquer ecrã. */}
+          <BadgeToast />
           <Routes>
             {/* Ecrãs com barra de separadores. */}
             <Route element={<TabLayout />}>

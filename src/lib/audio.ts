@@ -108,60 +108,42 @@ export function variantCount(name: string): number {
 }
 
 /* ------------------------------------------------------------------ */
-/* Efeitos — Web Audio                                                 */
+/* Efeitos — elementos <audio> pré-carregados                          */
 /* ------------------------------------------------------------------ */
 
-// Os efeitos têm de soar NO frame do impacto. Um `new Audio(url).play()` só
-// arranca depois de ir buscar e descodificar o ficheiro — mesmo já em cache
-// dá uns bons 100–300ms de atraso, que se nota como o som a chegar tarde.
-// Aqui descodificam-se uma vez para memória e depois disparam na hora.
+// Os efeitos têm de soar NO frame do impacto. O atraso que se ouvia não vinha
+// de usar <audio>, vinha de criar um elemento NOVO a cada golpe: só arranca
+// depois de ir buscar e descodificar o ficheiro. Aqui os elementos são criados
+// e carregados uma vez, e depois é só rebobinar e tocar.
+//
+// Já foi Web Audio, que é mais rápido, mas no iPhone sai pelo canal do TOQUE:
+// com o botão de silêncio ligado ficava tudo mudo, enquanto a música (que usa
+// <audio>, canal de media) continuava a ouvir-se. Uns milissegundos não valem
+// perder o som todo em metade dos telemóveis.
 
-let ctx: AudioContext | null = null
-const buffers = new Map<string, AudioBuffer>()
-const decoding = new Map<string, Promise<AudioBuffer | null>>()
+/** Cópias por som, para dois golpes seguidos não se cortarem um ao outro. */
+const POOL = 3
+const pools = new Map<string, HTMLAudioElement[]>()
 
-function context(): AudioContext | null {
-  const Ctor =
-    typeof AudioContext !== 'undefined'
-      ? AudioContext
-      : (window as unknown as { webkitAudioContext?: typeof AudioContext })
-          .webkitAudioContext
-  if (!Ctor) return null
-  if (!ctx) ctx = new Ctor()
-  // O browser suspende o contexto até haver interação; retomar é barato.
-  if (ctx.state === 'suspended') void ctx.resume()
-  return ctx
+function poolFor(url: string): HTMLAudioElement[] {
+  let pool = pools.get(url)
+  if (!pool) {
+    pool = Array.from({ length: POOL }, () => {
+      const el = new Audio(url)
+      el.preload = 'auto'
+      el.load()
+      return el
+    })
+    pools.set(url, pool)
+  }
+  return pool
 }
 
-function decode(url: string): Promise<AudioBuffer | null> {
-  const done = buffers.get(url)
-  if (done) return Promise.resolve(done)
-  const running = decoding.get(url)
-  if (running) return running
-
-  const job = (async () => {
-    const c = context()
-    if (!c) return null
-    try {
-      const res = await fetch(url)
-      const raw = await res.arrayBuffer()
-      const buf = await c.decodeAudioData(raw)
-      buffers.set(url, buf)
-      return buf
-    } catch {
-      return null // som partido ou em falta: silêncio, não é erro fatal
-    }
-  })()
-
-  decoding.set(url, job)
-  return job
-}
-
-/** Descodifica os efeitos todos para memória. Chamar ao entrar no combate:
- *  sem isto o primeiro golpe de cada tipo soa tarde. */
+/** Carrega os efeitos todos. Chamar ao entrar no combate: sem isto o primeiro
+ *  golpe de cada tipo soa tarde. */
 export function preloadSfx(): void {
   for (const key of Object.values(SFX)) {
-    for (const url of variantsOf.get(key) ?? []) void decode(url)
+    for (const url of variantsOf.get(key) ?? []) poolFor(url)
   }
 }
 
@@ -209,24 +191,15 @@ export function playSfx(key: SfxKey): void {
   const url = pick(key)
   if (!url) return
 
-  const c = context()
-  const buf = c && buffers.get(url)
-  if (c && buf) {
-    // Caminho normal: já em memória, arranca no frame.
-    const src = c.createBufferSource()
-    src.buffer = buf
-    const gain = c.createGain()
-    gain.gain.value = Math.min(1, getVolume() * 1.3)
-    src.connect(gain).connect(c.destination)
-    src.start()
-    return
-  }
-
-  // Ainda por descodificar (preloadSfx não correu, ou Web Audio indisponível):
-  // toca à moda antiga e trata de o ter pronto para a próxima.
-  void decode(url)
-  const el = new Audio(url)
+  const pool = poolFor(url)
+  // Um que esteja livre; se estiverem todos a tocar, rouba-se o primeiro.
+  const el = pool.find((a) => a.paused || a.ended) ?? pool[0]
   el.volume = Math.min(1, getVolume() * 1.3)
+  try {
+    el.currentTime = 0
+  } catch {
+    /* ainda a carregar — toca à mesma, do início */
+  }
   void el.play().catch(() => undefined)
 }
 
@@ -249,7 +222,6 @@ export function useAudio(): {
       const next = !m
       localStorage.setItem(MUTE_KEY, next ? '1' : '0')
       if (next) stopMusic()
-      else void context() // retomar: este clique é a interação que o desbloqueia
       return next
     })
   }, [])
