@@ -12,7 +12,7 @@ import {
   commitTurnIfReady,
   setBattleStatus,
 } from '../lib/battles'
-import { playMusic, stopMusic, playSfx, useAudio, MUSIC, SFX } from '../lib/audio'
+import { playMusic, stopMusic, playSfx, preloadSfx, useAudio, MUSIC, SFX } from '../lib/audio'
 import { getType } from '../data/pokeTypes'
 import {
   replayPvp,
@@ -24,6 +24,7 @@ import {
 } from '../data/battle'
 import { Avatar } from '../components/Avatar'
 import { InfoBox, MoveMenu, SwitchMenu } from '../components/BattleUI'
+import { MoveFx } from '../components/MoveFx'
 
 const first = (n: string) => n.split(' ')[0]
 
@@ -59,8 +60,12 @@ export function LiveBattleScreen() {
   const status = battle?.status
   const iWon = !!(battle && user && status === 'finished' && battle.winner === user.id)
   useEffect(() => {
-    if (status === 'active') void playMusic(MUSIC.battle)
-    else if (status === 'finished') void playMusic(iWon ? MUSIC.victory : MUSIC.defeat, { loop: false })
+    if (status === 'active') {
+      preloadSfx()
+      void playMusic(MUSIC.battle)
+    } else if (status === 'finished') {
+      void playMusic(iWon ? MUSIC.victory : MUSIC.defeat, { loop: false })
+    }
     return () => {
       if (status === 'finished') stopMusic()
     }
@@ -177,6 +182,18 @@ export function LiveBattleScreen() {
   const mustSwitch = !finished && !isAlive(ally)
   const canAct = !finished && myAction == null
 
+  // O golpe mais recente de cada lado, para animar quem levou. A `key` é o
+  // número do turno: muda a cada turno resolvido e reinicia a animação.
+  const lastHitOn = (side: 'ally' | 'foe') => {
+    const who = side === 'ally' ? (mySide === 'a' ? 'b' : 'a') : mySide
+    const log = state.log.filter(
+      (l) => l.turn === battle.turns.length - 1 && l.who === who && l.kind === 'move' && l.damage > 0,
+    )
+    return log.length ? log[log.length - 1].moveType : null
+  }
+  const foeHitType = canAct ? null : lastHitOn('foe')
+  const allyHitType = canAct ? null : lastHitOn('ally')
+
   // Mensagem do estado atual.
   let statusMsg: string
   if (finished) statusMsg = iWon ? 'Ganhaste o combate! 🎉' : 'Perdeste o combate.'
@@ -203,10 +220,12 @@ export function LiveBattleScreen() {
           <div className={'pkmn__mon pkmn__mon--foe' + (foe.hp <= 0 ? ' is-fainted' : '')}>
             <div className="pkmn__platform" />
             <Avatar name={foe.name} type={foe.types[0]} size={96} ring />
+            {foeHitType && <MoveFx key={'f' + battle.turns.length} type={foeHitType} />}
           </div>
           <div className={'pkmn__mon pkmn__mon--ally' + (ally.hp <= 0 ? ' is-fainted' : '')}>
             <div className="pkmn__platform" />
             <Avatar name={ally.name} type={ally.types[0]} size={112} ring />
+            {allyHitType && <MoveFx key={'a' + battle.turns.length} type={allyHitType} />}
           </div>
           <InfoBox className="pkmn__info pkmn__info--ally" f={ally} team={allyTeam} showNumbers />
         </div>

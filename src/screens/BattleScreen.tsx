@@ -18,9 +18,9 @@ import { usePeople } from '../store/people'
 import { useFriends } from '../lib/friends'
 import { useFriendPeople } from '../lib/friendPeople'
 import { challengeFriend } from '../lib/battles'
-import { playMusic, stopMusic, playSfx, useAudio, MUSIC, SFX } from '../lib/audio'
+import { playMusic, stopMusic, playSfx, preloadSfx, useAudio, MUSIC, SFX } from '../lib/audio'
 import type { Person, PublicPerson } from '../types'
-import { typeTheme, getType } from '../data/pokeTypes'
+import { typeTheme } from '../data/pokeTypes'
 import {
   buildTeam,
   aiChooseAction,
@@ -43,6 +43,7 @@ import {
 import { Avatar } from '../components/Avatar'
 import { TypeBadge } from '../components/TypeBadge'
 import { InfoBox, MoveMenu, SwitchMenu, hpDrainMs } from '../components/BattleUI'
+import { MoveFx } from '../components/MoveFx'
 import { TeamPicker, type TeamSource } from '../components/TeamPicker'
 
 type Mode = 'cpu' | 'friend'
@@ -127,7 +128,7 @@ export function BattleScreen() {
   const [hover, setHover] = useState(0)
   const [hit, setHit] = useState<'a' | 'b' | null>(null)
   const [striking, setStriking] = useState<'a' | 'b' | null>(null)
-  const [fx, setFx] = useState<{ side: 'a' | 'b'; color: string; key: number } | null>(null)
+  const [fx, setFx] = useState<{ side: 'a' | 'b'; type: string; key: number } | null>(null)
   const [dmgPop, setDmgPop] = useState<{ side: 'a' | 'b'; amount: number; key: number } | null>(null)
 
   // Parar a música ao sair do ecrã.
@@ -173,6 +174,7 @@ export function BattleScreen() {
     setFx(null)
     setDmgPop(null)
     setStarted(true)
+    preloadSfx() // sem isto o primeiro golpe de cada tipo soa tarde
     void playMusic(MUSIC.battle)
     void runIntro(my)
   }
@@ -255,15 +257,26 @@ export function BattleScreen() {
     if (mv.category !== 'estatuto' && res.damage > 0) {
       const defSide: 'a' | 'b' = who === 'a' ? 'b' : 'a'
       setHit(defSide)
-      setFx({ side: defSide, color: getType(mv.type).color, key: Date.now() })
+      setFx({ side: defSide, type: mv.type, key: Date.now() })
       setDmgPop({ side: defSide, amount: res.damage, key: Date.now() })
       playSfx(res.effectiveness >= 2 ? SFX.super : res.effectiveness < 1 ? SFX.weak : SFX.hit)
       setTimeout(() => setHit((h) => (h === defSide ? null : h)), 450)
     }
 
+    // O som de KO toca quando a barra CHEGA a zero, não quando o dano é
+    // calculado: estava a soar só depois da espera da barra e ainda da
+    // mensagem de eficácia, ou seja, segundos depois de a vida acabar.
+    const drain = hpDrainMs(res.damage || res.heal)
+    if (res.fainted) {
+      const at = my
+      setTimeout(() => {
+        if (runId.current === at) playSfx(SFX.faint)
+      }, drain)
+    }
+
     // Esperar que a barra acabe de escorrer antes de seguir para a próxima
     // mensagem — senão o texto passava por cima da vida ainda a descer.
-    await sleep(hpDrainMs(res.damage || res.heal) + PACE.settle)
+    await sleep(drain + PACE.settle)
     if (runId.current !== my) return false
 
     if (mv.category === 'estatuto') {
@@ -274,7 +287,6 @@ export function BattleScreen() {
     }
 
     if (res.fainted) {
-      playSfx(SFX.faint)
       if (!(await say(`${first(def.name)} foi derrotado/a!`, my, PACE.faint))) return false
       if (!teamAlive(defTeam)) {
         finish(who)
@@ -578,9 +590,7 @@ export function BattleScreen() {
               size={96}
               ring
             />
-            {fx?.side === 'b' && (
-              <span className="hit-fx" key={fx.key} style={{ ['--fx' as string]: fx.color }} />
-            )}
+            {fx?.side === 'b' && <MoveFx key={fx.key} type={fx.type} />}
             {dmgPop?.side === 'b' && (
               <span className="dmg-pop" key={dmgPop.key}>-{dmgPop.amount}</span>
             )}
@@ -602,9 +612,7 @@ export function BattleScreen() {
               size={112}
               ring
             />
-            {fx?.side === 'a' && (
-              <span className="hit-fx" key={fx.key} style={{ ['--fx' as string]: fx.color }} />
-            )}
+            {fx?.side === 'a' && <MoveFx key={fx.key} type={fx.type} />}
             {dmgPop?.side === 'a' && (
               <span className="dmg-pop" key={dmgPop.key}>-{dmgPop.amount}</span>
             )}

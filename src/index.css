@@ -3699,38 +3699,7 @@ select.input {
   100% { transform: translate(0, 0); }
 }
 
-/* Rebentamento com a cor do tipo do golpe, por cima do alvo. */
-.hit-fx {
-  position: absolute;
-  inset: -14px;
-  z-index: 2;
-  border-radius: 50%;
-  pointer-events: none;
-  background: radial-gradient(
-    circle at 50% 50%,
-    color-mix(in srgb, var(--fx) 90%, white) 0%,
-    var(--fx) 32%,
-    transparent 66%
-  );
-  animation: hit-burst 0.5s ease-out forwards;
-}
-.hit-fx::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 3px solid var(--fx);
-  animation: hit-ring 0.5s ease-out forwards;
-}
-@keyframes hit-burst {
-  0% { opacity: 0.95; transform: scale(0.35); }
-  60% { opacity: 0.5; transform: scale(1.05); }
-  100% { opacity: 0; transform: scale(1.35); }
-}
-@keyframes hit-ring {
-  0% { opacity: 0.9; transform: scale(0.4); }
-  100% { opacity: 0; transform: scale(1.8); }
-}
+/* O rebentamento genérico deu lugar ao MoveFx, com uma animação por tipo. */
 
 /* Queda mais dramática. */
 .pkmn__mon.is-fainted {
@@ -3744,14 +3713,290 @@ select.input {
   .pkmn__mon--foe.is-striking,
   .pkmn__mon.is-hit,
   .pkmn__mon.is-hit .avatar,
-  .hit-fx,
-  .hit-fx::after,
   .dmg-pop,
   .pkmn__scene::before {
     animation: none;
   }
-  .hit-fx {
-    opacity: 0;
+}
+
+/* ---------- Animações de golpe por tipo (MoveFx) ---------------- *
+   Cada família tem a sua forma; a cor vem sempre do tipo, via --fx. */
+
+.mfx {
+  position: absolute;
+  inset: -26px;
+  z-index: 3;
+  pointer-events: none;
+}
+.mfx svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* --- Água: onda a varrer + gotas --- */
+.mfx--wave .mfx__wave1,
+.mfx--wave .mfx__wave2 {
+  fill: var(--fx);
+}
+.mfx--wave .mfx__wave1 {
+  opacity: 0.85;
+  animation: wave-sweep 0.72s cubic-bezier(0.3, 0, 0.2, 1) forwards;
+}
+.mfx--wave .mfx__wave2 {
+  fill: #fff;
+  opacity: 0.5;
+  animation: wave-sweep 0.72s cubic-bezier(0.3, 0, 0.2, 1) 0.07s forwards;
+}
+.mfx--wave .mfx__drops circle {
+  fill: #fff;
+  animation: drop-fly 0.6s ease-out 0.12s forwards;
+}
+@keyframes wave-sweep {
+  0% { transform: translate(-70%, 30%); opacity: 0; }
+  35% { opacity: 0.9; }
+  100% { transform: translate(70%, -6%); opacity: 0; }
+}
+@keyframes drop-fly {
+  0% { transform: translateY(16px) scale(0.4); opacity: 0; }
+  40% { opacity: 1; }
+  100% { transform: translateY(-24px) scale(1.1); opacity: 0; }
+}
+
+/* --- Elétrico: raio + clarão --- */
+.mfx--bolt .mfx__bolt {
+  fill: var(--fx);
+  stroke: #fff;
+  stroke-width: 2;
+  animation: bolt-strike 0.5s steps(1) forwards;
+}
+.mfx--bolt .mfx__bolt--b {
+  animation-delay: 0.1s;
+  opacity: 0;
+}
+.mfx--bolt .mfx__flash {
+  fill: var(--fx);
+  animation: bolt-flash 0.45s ease-out forwards;
+}
+@keyframes bolt-strike {
+  0% { opacity: 0; transform: scaleY(0.2); transform-origin: top; }
+  15% { opacity: 1; transform: scaleY(1); }
+  40% { opacity: 0.3; }
+  55% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes bolt-flash {
+  0% { opacity: 0.75; transform: scale(0.3); }
+  100% { opacity: 0; transform: scale(1.4); }
+}
+
+/* --- Fogo: labaredas a subir --- */
+.mfx--flame .mfx__fire1 {
+  fill: var(--fx);
+  animation: flame-up 0.62s ease-out forwards;
+  transform-origin: 50% 100%;
+}
+.mfx--flame .mfx__fire2 {
+  fill: #ffe9a8;
+  opacity: 0.9;
+  animation: flame-up 0.62s ease-out 0.08s forwards;
+  transform-origin: 50% 100%;
+}
+@keyframes flame-up {
+  0% { opacity: 0; transform: translateY(18px) scaleY(0.4) scaleX(0.7); }
+  35% { opacity: 1; transform: translateY(0) scaleY(1.12) scaleX(1); }
+  70% { transform: translateY(-6px) scaleY(0.94) scaleX(1.06); }
+  100% { opacity: 0; transform: translateY(-18px) scaleY(1.2) scaleX(0.8); }
+}
+
+/* --- Erva/Bug: folhas a rodopiar --- */
+.mfx--leaves .mfx__leaf {
+  fill: var(--fx);
+  opacity: 0;
+  transform-origin: center;
+}
+.mfx--leaves .mfx__leaf--a { animation: leaf-spin 0.7s ease-out forwards; }
+.mfx--leaves .mfx__leaf--b { animation: leaf-spin 0.7s ease-out 0.06s forwards; }
+.mfx--leaves .mfx__leaf--c { animation: leaf-spin 0.7s ease-out 0.12s forwards; }
+.mfx--leaves .mfx__leaf--d { animation: leaf-spin 0.7s ease-out 0.18s forwards; }
+@keyframes leaf-spin {
+  0% { opacity: 0; transform: scale(0.2) rotate(0deg); }
+  30% { opacity: 1; transform: scale(0.72) rotate(180deg); }
+  100% { opacity: 0; transform: scale(0.55) rotate(540deg) translateY(-14px); }
+}
+
+/* --- Gelo: estilhaços a cravar + geada --- */
+.mfx--ice .mfx__shard {
+  fill: var(--fx);
+  stroke: #fff;
+  stroke-width: 1.5;
+  opacity: 0;
+  transform-origin: 50px 50px;
+}
+.mfx--ice .mfx__shard--a { animation: shard-in 0.55s cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
+.mfx--ice .mfx__shard--b { animation: shard-in 0.55s cubic-bezier(0.3, 1.6, 0.5, 1) 0.05s forwards; }
+.mfx--ice .mfx__shard--c { animation: shard-in 0.55s cubic-bezier(0.3, 1.6, 0.5, 1) 0.1s forwards; }
+.mfx--ice .mfx__shard--d { animation: shard-in 0.55s cubic-bezier(0.3, 1.6, 0.5, 1) 0.15s forwards; }
+.mfx--ice .mfx__shard--e { animation: shard-in 0.55s cubic-bezier(0.3, 1.6, 0.5, 1) 0.2s forwards; }
+.mfx--ice .mfx__frost {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-dasharray: 6 7;
+  opacity: 0;
+  animation: frost-ring 0.6s ease-out 0.1s forwards;
+}
+@keyframes shard-in {
+  0% { opacity: 0; transform: scale(2.4) translateY(-30px); }
+  55% { opacity: 1; transform: scale(1) translateY(0); }
+  100% { opacity: 0; transform: scale(0.9) translateY(4px); }
+}
+@keyframes frost-ring {
+  0% { opacity: 0; transform: scale(0.4) rotate(0deg); transform-origin: 50px 50px; }
+  50% { opacity: 0.9; }
+  100% { opacity: 0; transform: scale(1.5) rotate(70deg); transform-origin: 50px 50px; }
+}
+
+/* --- Rocha/Terra: pedras a cair + poeira --- */
+.mfx--rocks .mfx__rock {
+  fill: var(--fx);
+  stroke: rgba(0, 0, 0, 0.35);
+  stroke-width: 1.5;
+  opacity: 0;
+  transform-origin: center;
+}
+.mfx--rocks .mfx__rock--a { animation: rock-fall 0.66s cubic-bezier(0.5, 0, 0.8, 1) forwards; }
+.mfx--rocks .mfx__rock--b { animation: rock-fall 0.66s cubic-bezier(0.5, 0, 0.8, 1) 0.09s forwards; }
+.mfx--rocks .mfx__rock--c { animation: rock-fall 0.66s cubic-bezier(0.5, 0, 0.8, 1) 0.17s forwards; }
+.mfx--rocks .mfx__dust {
+  fill: var(--fx);
+  opacity: 0;
+  animation: dust-puff 0.5s ease-out 0.3s forwards;
+}
+@keyframes rock-fall {
+  0% { opacity: 0; transform: translateY(-46px) rotate(0deg); }
+  25% { opacity: 1; }
+  75% { opacity: 1; transform: translateY(30px) rotate(190deg); }
+  100% { opacity: 0; transform: translateY(38px) rotate(230deg); }
+}
+@keyframes dust-puff {
+  0% { opacity: 0; transform: scaleX(0.3) scaleY(0.4); transform-origin: 50px 80px; }
+  40% { opacity: 0.6; }
+  100% { opacity: 0; transform: scaleX(1.5) scaleY(1.2); transform-origin: 50px 80px; }
+}
+
+/* --- Luta/Normal: estrelão de impacto --- */
+.mfx--impact .mfx__star {
+  fill: var(--fx);
+  stroke: #fff;
+  stroke-width: 2;
+  transform-origin: 50px 50px;
+  animation: star-pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) forwards;
+}
+.mfx--impact .mfx__ring {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3;
+  transform-origin: 50px 50px;
+  animation: impact-ring 0.5s ease-out forwards;
+}
+@keyframes star-pop {
+  0% { opacity: 0; transform: scale(0.1) rotate(-40deg); }
+  45% { opacity: 1; transform: scale(1.05) rotate(6deg); }
+  100% { opacity: 0; transform: scale(0.85) rotate(14deg); }
+}
+@keyframes impact-ring {
+  0% { opacity: 0.9; transform: scale(0.2); }
+  100% { opacity: 0; transform: scale(1.9); }
+}
+
+/* --- Psychic/Ghost/Fairy/Dark: orbe e anéis --- */
+.mfx--orb .mfx__orb {
+  fill: var(--fx);
+  transform-origin: 50px 50px;
+  animation: orb-pulse 0.62s ease-out forwards;
+}
+.mfx--orb .mfx__halo {
+  fill: none;
+  stroke: var(--fx);
+  stroke-width: 3;
+  transform-origin: 50px 50px;
+  opacity: 0;
+}
+.mfx--orb .mfx__halo--a { animation: halo-out 0.62s ease-out forwards; }
+.mfx--orb .mfx__halo--b { animation: halo-out 0.62s ease-out 0.12s forwards; }
+.mfx--orb .mfx__halo--c { animation: halo-out 0.62s ease-out 0.24s forwards; }
+@keyframes orb-pulse {
+  0% { opacity: 0; transform: scale(0.2); }
+  40% { opacity: 0.85; transform: scale(1.1); }
+  100% { opacity: 0; transform: scale(0.6); }
+}
+@keyframes halo-out {
+  0% { opacity: 0.9; transform: scale(0.3); }
+  100% { opacity: 0; transform: scale(1.7); }
+}
+
+/* --- Veneno: bolhas a subir --- */
+.mfx--bubbles .mfx__bub {
+  fill: var(--fx);
+  stroke: #fff;
+  stroke-width: 1.5;
+  opacity: 0;
+}
+.mfx--bubbles .mfx__bub--a { animation: bub-rise 0.72s ease-out forwards; }
+.mfx--bubbles .mfx__bub--b { animation: bub-rise 0.72s ease-out 0.08s forwards; }
+.mfx--bubbles .mfx__bub--c { animation: bub-rise 0.72s ease-out 0.16s forwards; }
+.mfx--bubbles .mfx__bub--d { animation: bub-rise 0.72s ease-out 0.24s forwards; }
+.mfx--bubbles .mfx__bub--e { animation: bub-rise 0.72s ease-out 0.32s forwards; }
+@keyframes bub-rise {
+  0% { opacity: 0; transform: translateY(10px) scale(0.3); }
+  30% { opacity: 0.9; }
+  100% { opacity: 0; transform: translateY(-72px) scale(1.15); }
+}
+
+/* --- Voador: lâminas de vento --- */
+.mfx--wind .mfx__gust {
+  fill: var(--fx);
+  opacity: 0;
+}
+.mfx--wind .mfx__gust--a { animation: gust-cut 0.5s ease-out forwards; }
+.mfx--wind .mfx__gust--b { animation: gust-cut 0.5s ease-out 0.1s forwards; }
+.mfx--wind .mfx__gust--c { animation: gust-cut 0.5s ease-out 0.2s forwards; }
+@keyframes gust-cut {
+  0% { opacity: 0; transform: translateX(-60px) scaleX(0.4); }
+  40% { opacity: 0.95; }
+  100% { opacity: 0; transform: translateX(70px) scaleX(1.2); }
+}
+
+/* --- Aço: brilho metálico --- */
+.mfx--gleam .mfx__shine {
+  fill: #fff;
+  opacity: 0;
+}
+.mfx--gleam .mfx__shine--a { animation: shine-cross 0.5s ease-out forwards; }
+.mfx--gleam .mfx__shine--b {
+  fill: var(--fx);
+  animation: shine-cross 0.5s ease-out 0.09s forwards;
+}
+.mfx--gleam .mfx__spark {
+  fill: #fff;
+  transform-origin: 50px 50px;
+  animation: spark-pop 0.44s ease-out 0.12s forwards;
+}
+@keyframes shine-cross {
+  0% { opacity: 0; transform: translateX(-50px); }
+  45% { opacity: 0.95; }
+  100% { opacity: 0; transform: translateX(60px); }
+}
+@keyframes spark-pop {
+  0% { opacity: 0; transform: scale(0.2); }
+  40% { opacity: 1; transform: scale(2.6); }
+  100% { opacity: 0; transform: scale(0.6); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mfx {
+    display: none;
   }
 }
 
