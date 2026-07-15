@@ -23,13 +23,20 @@ import {
   UserX,
   Swords,
   Skull,
+  Baby,
+  Egg,
+  HeartCrack,
+  Undo2,
 } from 'lucide-react'
 import type { Person } from '../types'
-import { totalXp, levelInfo } from './xp'
+import type { CycleConfig } from './cycle'
+import { totalXp, levelInfo, fertileMomentCount } from './xp'
 
 export interface BadgeCtx {
   people: Person[]
   home: string
+  /** O ciclo do utilizador. Sem ele os badges de fertilidade ficam a zero. */
+  cycle?: CycleConfig
 }
 
 export interface BadgeDef {
@@ -68,6 +75,12 @@ const cheatVictimsCount = (p: Person[]) =>
 const totalWins = (p: Person[]) => p.reduce((s, x) => s + (x.battle?.wins ?? 0), 0)
 const maxBattleLevel = (p: Person[]) =>
   p.reduce((m, x) => Math.max(m, x.battle?.level ?? 1), 1)
+/** Momentos de um dado tipo com pessoas marcadas como ex. */
+const exMoments = (p: Person[], kind: 'beijo' | 'sexo') =>
+  p
+    .filter((x) => x.ex)
+    .reduce((s, x) => s + x.moments.filter((m) => m.kind === kind).length, 0)
+const exCount = (p: Person[]) => p.filter((x) => x.ex).length
 
 export const BADGES: BadgeDef[] = [
   {
@@ -430,6 +443,53 @@ export const BADGES: BadgeDef[] = [
     color: '#B8860B',
     target: 10,
     value: (c) => maxBattleLevel(c.people),
+  },
+  // --- Período fértil (precisa do ciclo configurado no teu perfil) ---
+  {
+    id: 'fertile-1',
+    title: 'Roleta Russa',
+    desc: 'Sexo dentro da janela fértil',
+    icon: Egg,
+    color: '#2FAE82',
+    target: 1,
+    value: (c) => fertileMomentCount(c.people, c.cycle),
+  },
+  {
+    id: 'fertile-5',
+    title: 'Sem Medo da Bomba',
+    desc: '5 vezes sexo na janela fértil',
+    icon: Baby,
+    color: '#1E8C66',
+    target: 5,
+    value: (c) => fertileMomentCount(c.people, c.cycle),
+  },
+  // --- Ex-namoradas/os ---
+  {
+    id: 'ex-kiss',
+    title: 'Beijo da Recaída',
+    desc: 'Beija uma ex',
+    icon: Undo2,
+    color: '#EC5A96',
+    target: 1,
+    value: (c) => exMoments(c.people, 'beijo'),
+  },
+  {
+    id: 'ex-sex',
+    title: 'Volta a Casa',
+    desc: 'Sexo com uma ex',
+    icon: HeartCrack,
+    color: '#B4204C',
+    target: 1,
+    value: (c) => exMoments(c.people, 'sexo'),
+  },
+  {
+    id: 'ex-collector',
+    title: 'Museu das Ex',
+    desc: '3 ex-namoradas/os na coleção',
+    icon: HeartCrack,
+    color: '#8E1836',
+    target: 3,
+    value: (c) => exCount(c.people),
   },
 ]
 

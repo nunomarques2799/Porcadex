@@ -45,6 +45,7 @@ function rowToPerson(r: Record<string, unknown>): Person {
     gender: (r.gender as Person['gender']) ?? undefined,
     private: Boolean(r.is_private),
     relationship: (r.relationship as string) === 'sexo' ? 'sexo' : 'beijo',
+    ex: Boolean(r.is_ex),
     types,
     country: (r.country as string) || undefined,
     ball: (r.ball as string) || 'poke',
@@ -73,6 +74,7 @@ function personToRow(p: Partial<Person>): Record<string, unknown> {
   if (p.gender !== undefined) row.gender = p.gender ?? null
   if (p.private !== undefined) row.is_private = p.private
   if (p.relationship !== undefined) row.relationship = p.relationship
+  if (p.ex !== undefined) row.is_ex = p.ex
   if (p.types !== undefined) row.types = p.types
   if (p.country !== undefined) row.country = p.country ?? null
   if (p.ball !== undefined) row.ball = p.ball
@@ -247,6 +249,7 @@ export function emptyDraft(): NewPerson {
     gender: undefined,
     private: false,
     relationship: 'beijo',
+    ex: false,
     types: [],
     country: DEFAULT_HOME_ID, // Portugal pré-selecionado (alterável)
     ball: 'poke',

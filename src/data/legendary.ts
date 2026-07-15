@@ -17,6 +17,7 @@ export const LEGENDARY_CATS: LegendaryCatDef[] = [
   { key: 'nao-binario', label: 'Não Binário' },
   { key: 'lesbica', label: 'Lésbica' },
   { key: 'bissexual', label: 'Bissexual' },
+  { key: 'colega-trabalho', label: 'Colega de Trabalho' },
 ]
 
 export function legendaryLabel(key: string): string {

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Camera, Trash2, X, Crown, Lock } from 'lucide-react'
+import { ChevronLeft, Camera, Trash2, X, Crown, Lock, HeartCrack } from 'lucide-react'
 import { usePeople, emptyDraft, type NewPerson } from '../store/people'
 import { RELATIONSHIPS } from '../data/relationships'
 import { POKE_TYPES, typeTheme } from '../data/pokeTypes'
@@ -31,6 +31,7 @@ export function EditScreen() {
           gender: existing.gender,
           private: existing.private ?? false,
           relationship: existing.relationship,
+          ex: existing.ex ?? false,
           types: [...existing.types],
           country: existing.country,
           ball: existing.ball,
@@ -266,6 +267,27 @@ export function EditScreen() {
               )
             })}
           </div>
+        </div>
+
+        {/* Ex-partner */}
+        <div className="field">
+          <button
+            type="button"
+            className={'legend-toggle' + (draft.ex ? ' is-active' : '')}
+            onClick={() => set({ ex: !draft.ex })}
+          >
+            <span className="legend-toggle__label">
+              <HeartCrack size={18} /> Ex namorada/o
+            </span>
+            <span className={'switch' + (draft.ex ? ' switch--on' : '')}>
+              <span className="switch__dot" />
+            </span>
+          </button>
+          {draft.ex && (
+            <p className="dex-hint" style={{ marginTop: 8 }}>
+              Momentos com ela/e contam para os badges de ex.
+            </p>
+          )}
         </div>
 
         {/* Pokémon types */}

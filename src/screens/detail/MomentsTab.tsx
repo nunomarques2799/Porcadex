@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { Plus, Trash2, CalendarDays, ShieldAlert } from 'lucide-react'
-import type { Person, Moment } from '../../types'
+import { Plus, Trash2, CalendarDays, ShieldAlert, Beer, Coffee, Egg } from 'lucide-react'
+import type { Person, Moment, MomentCondition } from '../../types'
 import { usePeople } from '../../store/people'
+import { useUserProfile } from '../../lib/userProfile'
 import { getRelationship } from '../../data/relationships'
+import { momentIsFertile, XP } from '../../data/xp'
 import { RelBadge } from '../../components/RelBadge'
 import { uid, formatDate } from '../../lib/utils'
 
@@ -16,17 +18,25 @@ export function MomentsTab({
   accent: string
 }) {
   const { updatePerson } = usePeople()
+  const [profile] = useUserProfile()
   const [adding, setAdding] = useState(false)
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
   const [kind, setKind] = useState<Kind>(
     person.relationship === 'sexo' ? 'sexo' : 'beijo',
   )
+  const [condition, setCondition] = useState<MomentCondition | undefined>()
   const [userCheated, setUserCheated] = useState(false)
   const [personCheated, setPersonCheated] = useState(false)
 
   const moments = [...person.moments].sort((a, b) =>
     (b.date ?? '').localeCompare(a.date ?? ''),
+  )
+
+  // Pré-visualização do bónus enquanto se escolhe a data.
+  const draftFertile = momentIsFertile(
+    { id: '', title: '', kind: kind === 'outro' ? undefined : kind, date },
+    profile,
   )
 
   const add = () => {
@@ -38,12 +48,14 @@ export function MomentsTab({
       title: finalTitle,
       date: date || undefined,
       kind: kind === 'outro' ? undefined : kind,
+      condition,
       userCheated: userCheated || undefined,
       personCheated: personCheated || undefined,
     }
     updatePerson(person.id, { moments: [...person.moments, moment] })
     setTitle('')
     setDate('')
+    setCondition(undefined)
     setUserCheated(false)
     setPersonCheated(false)
     setAdding(false)
@@ -91,8 +103,23 @@ export function MomentsTab({
                     <CalendarDays size={13} /> {formatDate(m.date)}
                   </span>
                 )}
-                {(m.userCheated || m.personCheated) && (
+                {(m.userCheated || m.personCheated || m.condition || momentIsFertile(m, profile)) && (
                   <div className="timeline__flags">
+                    {momentIsFertile(m, profile) && (
+                      <span className="cheat-flag cheat-flag--fertile">
+                        <Egg size={12} /> Período fértil · +{XP.momentFertil} XP
+                      </span>
+                    )}
+                    {m.condition === 'bebado' && (
+                      <span className="cheat-flag cheat-flag--drunk">
+                        <Beer size={12} /> Bêbado/a
+                      </span>
+                    )}
+                    {m.condition === 'sobrio' && (
+                      <span className="cheat-flag cheat-flag--sober">
+                        <Coffee size={12} /> Sóbrio/a
+                      </span>
+                    )}
                     {m.userCheated && (
                       <span className="cheat-flag cheat-flag--user">
                         <ShieldAlert size={12} /> Eu traí
@@ -142,12 +169,43 @@ export function MomentsTab({
             onChange={(e) => setTitle(e.target.value)}
             autoFocus
           />
-          <input
-            className="input"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
+          <div className="field">
+            <label htmlFor="moment-date">Data (opcional)</label>
+            <input
+              id="moment-date"
+              className="input"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
+          {draftFertile && (
+            <p className="moment-form__fertile">
+              <Egg size={14} /> Esta data cai na tua janela fértil — bónus de{' '}
+              <b>+{XP.momentFertil} XP</b>.
+            </p>
+          )}
+
+          <div className="field">
+            <label>Como estavas</label>
+            <div className="segmented">
+              <button
+                className={'segmented__btn' + (condition === 'bebado' ? ' is-active' : '')}
+                onClick={() => setCondition(condition === 'bebado' ? undefined : 'bebado')}
+                style={condition === 'bebado' ? { background: '#E0A62A', color: '#fff' } : undefined}
+              >
+                <Beer size={14} /> Bêbado/a
+              </button>
+              <button
+                className={'segmented__btn' + (condition === 'sobrio' ? ' is-active' : '')}
+                onClick={() => setCondition(condition === 'sobrio' ? undefined : 'sobrio')}
+                style={condition === 'sobrio' ? { background: '#2FAE82', color: '#fff' } : undefined}
+              >
+                <Coffee size={14} /> Sóbrio/a
+              </button>
+            </div>
+          </div>
+
           <div className="cheat-toggles">
             <label className="cheat-toggle">
               <input

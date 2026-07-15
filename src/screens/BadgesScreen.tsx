@@ -3,14 +3,19 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, Check, Lock } from 'lucide-react'
 import { usePeople } from '../store/people'
 import { useHomeCountry } from '../lib/settings'
+import { useUserProfile } from '../lib/userProfile'
 import { badgeStates } from '../data/badges'
 
 export function BadgesScreen() {
   const { people } = usePeople()
   const [home] = useHomeCountry()
+  const [profile] = useUserProfile()
   const navigate = useNavigate()
 
-  const states = useMemo(() => badgeStates({ people, home }), [people, home])
+  const states = useMemo(
+    () => badgeStates({ people, home, cycle: profile }),
+    [people, home, profile],
+  )
   const earned = states.filter((s) => s.earned).length
 
   return (

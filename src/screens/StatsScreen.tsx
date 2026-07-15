@@ -1,13 +1,18 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ChevronLeft, Heart, Flame, Crown, Globe, Star, Zap, Award, ChevronRight, Maximize2, ShieldAlert, VenetianMask, UserX } from 'lucide-react'
+import { ChevronLeft, Heart, Flame, Crown, Globe, Star, Zap, Award, ChevronRight, Maximize2, ShieldAlert, VenetianMask, UserX, Cake } from 'lucide-react'
 import { usePeople } from '../store/people'
 import { useHomeCountry } from '../lib/settings'
+import { useUserProfile } from '../lib/userProfile'
 import { COUNTRIES, countryName } from '../data/countries'
 import { POKE_TYPES, getType } from '../data/pokeTypes'
 import { LEGENDARY_CATS } from '../data/legendary'
 import { totalXp, levelInfo } from '../data/xp'
 import { badgeStates } from '../data/badges'
+import { upcomingBirthdays, birthdayWhen } from '../data/birthdays'
+import { isoOf } from '../data/cycle'
+import { formatDate } from '../lib/utils'
+import { Avatar } from '../components/Avatar'
 import { WorldMap } from '../components/WorldMap'
 import { MapModal } from '../components/MapModal'
 
@@ -15,6 +20,7 @@ export function StatsScreen() {
   const { people } = usePeople()
   const navigate = useNavigate()
   const [home, setHome] = useHomeCountry()
+  const [profile] = useUserProfile()
 
   const s = useMemo(() => {
     const beijos = people.filter((p) => p.relationship === 'beijo').length
@@ -77,9 +83,16 @@ export function StatsScreen() {
     }
   }, [people, home])
 
-  const lvl = useMemo(() => levelInfo(totalXp(people, home)), [people, home])
-  const badges = useMemo(() => badgeStates({ people, home }), [people, home])
+  const lvl = useMemo(
+    () => levelInfo(totalXp(people, home, profile)),
+    [people, home, profile],
+  )
+  const badges = useMemo(
+    () => badgeStates({ people, home, cycle: profile }),
+    [people, home, profile],
+  )
   const badgesEarned = badges.filter((b) => b.earned).length
+  const birthdays = useMemo(() => upcomingBirthdays(people), [people])
   const [mapOpen, setMapOpen] = useState(false)
 
   return (
@@ -130,6 +143,38 @@ export function StatsScreen() {
           <Tile value={s.countries} label="Países" icon={<Globe size={16} />} color="#2FAE82" />
           <Tile value={s.avg ? s.avg.toFixed(1) : '—'} label="Média" icon={<Star size={16} />} color="#F5B23E" />
         </div>
+
+        {/* Upcoming birthdays */}
+        {birthdays.length > 0 && (
+          <section className="stats-card">
+            <div className="stats-card__head">
+              <h2><Cake size={16} style={{ verticalAlign: '-3px' }} /> Próximos aniversários</h2>
+            </div>
+            <ul className="bday-list">
+              {birthdays.map((b) => (
+                <li key={b.person.id}>
+                  <Link to={`/person/${b.person.id}`} className={'bday' + (b.isToday ? ' is-today' : '')}>
+                    <Avatar
+                      name={b.person.name}
+                      type={b.person.types[0]}
+                      avatarId={b.person.avatarId}
+                      size={38}
+                    />
+                    <div className="bday__text">
+                      <span className="bday__name">{b.person.name}</span>
+                      <span className="bday__date">
+                        {formatDate(isoOf(b.date)).slice(0, 5)} · faz {b.turning}
+                      </span>
+                    </div>
+                    <span className={'bday__when' + (b.isToday ? ' is-today' : '')}>
+                      {birthdayWhen(b)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* Cheating stats */}
         {(s.userCheats > 0 || s.personCheats > 0) && (

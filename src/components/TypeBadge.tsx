@@ -2,7 +2,7 @@ import { getType } from '../data/pokeTypes'
 
 interface TypeBadgeProps {
   type: string
-  size?: 'sm' | 'md'
+  size?: 'xs' | 'sm' | 'md'
 }
 
 /** A Pokémon-type pill, coloured by the type. */

@@ -1,18 +1,31 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Swords, Trophy, X } from 'lucide-react'
+import { ChevronLeft, Swords, Trophy, X, Repeat, Volume2, VolumeX } from 'lucide-react'
 import { usePeople } from '../store/people'
 import { useAuth } from '../lib/auth'
-import { useBattle, sideOf, submitMove, commitTurnIfReady, setBattleStatus } from '../lib/battles'
+import {
+  useBattle,
+  sideOf,
+  battleSetup,
+  myTeamIds,
+  submitAction,
+  commitTurnIfReady,
+  setBattleStatus,
+} from '../lib/battles'
+import { playMusic, stopMusic, playSfx, useAudio, MUSIC, SFX } from '../lib/audio'
 import { getType } from '../data/pokeTypes'
-import { replayPvp, applyBattleResult, type Fighter } from '../data/battle'
+import {
+  replayPvp,
+  applyBattleResult,
+  activeOf,
+  isAlive,
+  benchOptions,
+  type TeamState,
+} from '../data/battle'
 import { Avatar } from '../components/Avatar'
+import { InfoBox, MoveMenu, SwitchMenu } from '../components/BattleUI'
 
-function hpColor(pct: number): string {
-  if (pct > 0.5) return '#58d860'
-  if (pct > 0.2) return '#f8d030'
-  return '#f85038'
-}
+const first = (n: string) => n.split(' ')[0]
 
 export function LiveBattleScreen() {
   const { id = '' } = useParams()
@@ -20,35 +33,58 @@ export function LiveBattleScreen() {
   const { user } = useAuth()
   const { people, updatePerson } = usePeople()
   const { battle, loading } = useBattle(id)
+  const { muted, toggleMute } = useAudio()
+  const [hover, setHover] = useState(0)
+  const [switching, setSwitching] = useState(false)
 
   const mySide = battle && user ? sideOf(battle, user.id) : 'a'
 
   // Estado derivado (determinístico) a partir de setup + turnos.
   const state = useMemo(() => {
-    if (!battle || !battle.setup.a || !battle.setup.b) return null
-    return replayPvp({ a: battle.setup.a, b: battle.setup.b }, Number(battle.seed), battle.turns)
+    if (!battle) return null
+    const setup = battleSetup(battle)
+    if (!setup.a.length || !setup.b.length) return null
+    return replayPvp(setup, Number(battle.seed), battle.turns)
   }, [battle])
 
-  // Host (desafiante) consolida o turno quando ambas as jogadas chegam.
+  // Host (desafiante) consolida o turno quando ambas as ações chegam.
   useEffect(() => {
     if (!battle || mySide !== 'a') return
-    if (battle.status === 'active' && battle.move_a != null && battle.move_b != null) {
+    if (battle.status === 'active' && battle.action_a != null && battle.action_b != null) {
       void commitTurnIfReady(battle)
     }
   }, [battle, mySide])
 
-  // Ao terminar, cada cliente aplica XP à SUA pessoa (uma vez).
+  // Música: entra com o combate, muda no fim.
+  const status = battle?.status
+  const iWon = !!(battle && user && status === 'finished' && battle.winner === user.id)
+  useEffect(() => {
+    if (status === 'active') void playMusic(MUSIC.battle)
+    else if (status === 'finished') void playMusic(iWon ? MUSIC.victory : MUSIC.defeat, { loop: false })
+    return () => {
+      if (status === 'finished') stopMusic()
+    }
+  }, [status, iWon])
+  useEffect(() => () => stopMusic(), [])
+
+  // Ao terminar, cada cliente aplica XP à SUA equipa (uma vez só).
   useEffect(() => {
     if (!battle || battle.status !== 'finished' || !user) return
     const key = 'porcadex-pvp-applied-' + battle.id
     if (localStorage.getItem(key)) return
-    const myPersonId = mySide === 'a' ? battle.challenger_person : battle.opponent_person
-    const mine = people.find((p) => p.id === myPersonId)
-    if (!mine) return
-    const foe = mySide === 'a' ? battle.setup.b : battle.setup.a
-    const iWon = battle.winner === user.id
-    const { battle: nb } = applyBattleResult(mine.battle, iWon, foe?.level ?? 1)
-    void updatePerson(mine.id, { battle: nb })
+    const setup = battleSetup(battle)
+    const foes = mySide === 'a' ? setup.b : setup.a
+    if (!foes.length) return
+    const mine = myTeamIds(battle, mySide)
+      .map((pid) => people.find((p) => p.id === pid))
+      .filter((p): p is NonNullable<typeof p> => !!p)
+    if (!mine.length) return
+    const foeLevel = Math.round(foes.reduce((s, f) => s + f.level, 0) / foes.length)
+    const won = battle.winner === user.id
+    for (const p of mine) {
+      const { battle: nb } = applyBattleResult(p.battle, won, foeLevel)
+      void updatePerson(p.id, { battle: nb })
+    }
     localStorage.setItem(key, '1')
   }, [battle, user, people, mySide, updatePerson])
 
@@ -74,9 +110,11 @@ export function LiveBattleScreen() {
         <ChevronLeft size={24} />
       </button>
       <h1 className="edit__title">
-        <Swords size={18} /> Combate ao vivo
+        <Swords size={18} /> {battle.team_size || 1}v{battle.team_size || 1} ao vivo
       </h1>
-      <span style={{ width: 42 }} />
+      <button className="iconbtn" onClick={toggleMute} aria-label={muted ? 'Ligar som' : 'Desligar som'}>
+        {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+      </button>
     </header>
   )
 
@@ -117,7 +155,7 @@ export function LiveBattleScreen() {
     )
   }
 
-  if (!state || !battle.setup.a || !battle.setup.b) {
+  if (!state) {
     return (
       <div className="screen battle">
         {header}
@@ -126,33 +164,42 @@ export function LiveBattleScreen() {
     )
   }
 
-  // Perspetiva: a MINHA pessoa em baixo, o adversário em cima.
-  const ally: Fighter = mySide === 'a' ? state.a : state.b
-  const foe: Fighter = mySide === 'a' ? state.b : state.a
-  const myMove = mySide === 'a' ? battle.move_a : battle.move_b
-  const oppMove = mySide === 'a' ? battle.move_b : battle.move_a
+  // Perspetiva: a MINHA equipa em baixo, o adversário em cima.
+  const allyTeam: TeamState = mySide === 'a' ? state.a : state.b
+  const foeTeam: TeamState = mySide === 'a' ? state.b : state.a
+  const ally = activeOf(allyTeam)
+  const foe = activeOf(foeTeam)
+  const myAction = mySide === 'a' ? battle.action_a : battle.action_b
+  const oppAction = mySide === 'a' ? battle.action_b : battle.action_a
   const finished = battle.status === 'finished'
-  const iWon = finished && battle.winner === user?.id
+
+  const bench = benchOptions(allyTeam)
+  const mustSwitch = !finished && !isAlive(ally)
+  const canAct = !finished && myAction == null
 
   // Mensagem do estado atual.
   let statusMsg: string
   if (finished) statusMsg = iWon ? 'Ganhaste o combate! 🎉' : 'Perdeste o combate.'
-  else if (myMove != null && oppMove == null) statusMsg = 'À espera do adversário…'
-  else if (myMove != null && oppMove != null) statusMsg = 'A resolver o turno…'
+  else if (myAction != null && oppAction == null) statusMsg = 'À espera do adversário…'
+  else if (myAction != null && oppAction != null) statusMsg = 'A resolver o turno…'
   else statusMsg = 'Escolhe o teu ataque!'
+
+  const send = (action: Parameters<typeof submitAction>[2]) => {
+    playSfx(action.kind === 'switch' ? SFX.swap : SFX.select)
+    setSwitching(false)
+    void submitAction(battle.id, mySide, action)
+  }
 
   // Últimas ações do turno mais recente (para dar vida ao log).
   const lastTurnNo = battle.turns.length - 1
   const lastActions = state.log.filter((l) => l.turn === lastTurnNo)
-
-  const canChoose = !finished && myMove == null
 
   return (
     <div className="screen battle">
       {header}
       <div className="pkmn">
         <div className="pkmn__scene">
-          <LiveInfo className="pkmn__info pkmn__info--foe" f={foe} showNumbers />
+          <InfoBox className="pkmn__info pkmn__info--foe" f={foe} team={foeTeam} showNumbers />
           <div className={'pkmn__mon pkmn__mon--foe' + (foe.hp <= 0 ? ' is-fainted' : '')}>
             <div className="pkmn__platform" />
             <Avatar name={foe.name} type={foe.types[0]} size={96} ring />
@@ -161,29 +208,38 @@ export function LiveBattleScreen() {
             <div className="pkmn__platform" />
             <Avatar name={ally.name} type={ally.types[0]} size={112} ring />
           </div>
-          <LiveInfo className="pkmn__info pkmn__info--ally" f={ally} showNumbers />
+          <InfoBox className="pkmn__info pkmn__info--ally" f={ally} team={allyTeam} showNumbers />
         </div>
 
         <div className="pkmn__ui">
-          {canChoose ? (
-            <div className="move-menu move-menu--live">
-              <div className="move-menu__moves">
-                {ally.moves.map((m, i) => {
-                  const mt = getType(m.type)
-                  return (
-                    <button
-                      key={m.name}
-                      className="move-cell"
-                      style={{ ['--mv' as string]: mt.color }}
-                      onClick={() => void submitMove(battle.id, mySide, i)}
-                    >
-                      <span className="move-cell__dot" style={{ background: mt.color }} />
-                      <span className="move-cell__name">{m.name}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+          {canAct && mustSwitch ? (
+            <SwitchMenu
+              team={allyTeam}
+              options={bench}
+              forced
+              onPick={(to) => send({ kind: 'switch', to })}
+            />
+          ) : canAct && switching ? (
+            <SwitchMenu
+              team={allyTeam}
+              options={bench}
+              onPick={(to) => send({ kind: 'switch', to })}
+              onCancel={() => setSwitching(false)}
+            />
+          ) : canAct ? (
+            <>
+              <MoveMenu
+                f={ally}
+                hover={hover}
+                onHover={setHover}
+                onPick={(i) => send({ kind: 'move', index: i })}
+              />
+              {bench.length > 0 && (
+                <button className="switch-cta" onClick={() => setSwitching(true)}>
+                  <Repeat size={15} /> Trocar de lutador
+                </button>
+              )}
+            </>
           ) : (
             <div className="pkmn__msg">
               <span>{statusMsg}</span>
@@ -191,14 +247,23 @@ export function LiveBattleScreen() {
           )}
         </div>
 
-        {lastActions.length > 0 && !canChoose && (
+        {lastActions.length > 0 && !canAct && (
           <div className="live-log">
             {lastActions.map((l, i) => (
               <div className="live-log__row" key={i}>
-                <strong>{l.who === mySide ? ally.name.split(' ')[0] : foe.name.split(' ')[0]}</strong>{' '}
-                usou <span style={{ color: getType(l.moveType).color, fontWeight: 800 }}>{l.moveName}</span>
-                {l.category === 'estatuto' ? ` (+${l.heal} HP)` : ` — ${l.damage} dano`}
-                {l.fainted && ' 💥 KO!'}
+                <strong>{first(l.actor)}</strong>{' '}
+                {l.kind === 'switch' ? (
+                  'entrou em campo'
+                ) : (
+                  <>
+                    usou{' '}
+                    <span style={{ color: getType(l.moveType).color, fontWeight: 800 }}>
+                      {l.moveName}
+                    </span>
+                    {l.category === 'estatuto' ? ` (+${l.heal} HP)` : ` — ${l.damage} dano`}
+                    {l.fainted && ' 💥 KO!'}
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -208,7 +273,8 @@ export function LiveBattleScreen() {
       {finished && (
         <>
           <div className="battle-reward">
-            <Trophy size={18} /> {iWon ? `${ally.name.split(' ')[0]} venceu e ganhou XP!` : 'Não foi desta.'}
+            <Trophy size={18} />{' '}
+            {iWon ? 'A tua equipa venceu e ganhou XP!' : 'Não foi desta.'}
           </div>
           <div className="battle-controls">
             <button className="btn btn--primary" onClick={() => navigate('/')}>
@@ -216,29 +282,6 @@ export function LiveBattleScreen() {
             </button>
           </div>
         </>
-      )}
-    </div>
-  )
-}
-
-function LiveInfo({ className, f, showNumbers }: { className?: string; f: Fighter; showNumbers?: boolean }) {
-  const pct = f.maxHp > 0 ? Math.max(0, Math.min(1, f.hp / f.maxHp)) : 0
-  return (
-    <div className={'info-box' + (className ? ' ' + className : '')}>
-      <div className="info-box__top">
-        <span className="info-box__name">{f.name}</span>
-        <span className="info-box__lv">Nv{f.level}</span>
-      </div>
-      <div className="info-box__hprow">
-        <span className="info-box__hplabel">HP</span>
-        <div className="info-box__hptrack">
-          <div className="info-box__hpfill" style={{ width: `${pct * 100}%`, background: hpColor(pct) }} />
-        </div>
-      </div>
-      {showNumbers && (
-        <div className="info-box__num">
-          {Math.max(0, f.hp)}/{f.maxHp}
-        </div>
       )}
     </div>
   )

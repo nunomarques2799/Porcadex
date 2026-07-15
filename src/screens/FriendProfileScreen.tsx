@@ -1,12 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Zap, Users, Swords } from 'lucide-react'
+import { ChevronLeft, Zap, Users, Swords, Trophy, Star } from 'lucide-react'
 import { useFriendPeople, useFriendProfile } from '../lib/friendPeople'
 import { publicTotalXp, levelInfo } from '../data/xp'
+import { typeTheme } from '../data/pokeTypes'
+import { formatNumber } from '../lib/utils'
+import { Avatar } from '../components/Avatar'
 import { PersonCard } from '../components/PersonCard'
-import { MyPersonPicker } from '../components/MyPersonPicker'
-import { challengeFriend } from '../lib/battles'
-import type { Person } from '../types'
 import { useHomeCountry } from '../lib/settings'
 
 export function FriendProfileScreen() {
@@ -15,13 +15,6 @@ export function FriendProfileScreen() {
   const { profile, loading: profLoading } = useFriendProfile(friendId)
   const { people, loading: peopleLoading } = useFriendPeople(friendId)
   const [myHome] = useHomeCountry()
-  const [challenging, setChallenging] = useState(false)
-
-  const onChallenge = async (person: Person) => {
-    setChallenging(false)
-    const r = await challengeFriend(person, friendId)
-    if (r.id) navigate(`/battle/live/${r.id}`)
-  }
 
   // Use the friend's own home country when possible for the trainer level
   // calculation; fall back to ours.
@@ -30,6 +23,17 @@ export function FriendProfileScreen() {
 
   const beijoCount = people.filter((p) => p.relationship === 'beijo').length
   const sexoCount = people.filter((p) => p.relationship === 'sexo').length
+
+  // Ranking por classificação média. Só entra quem já tem votos — sem isso,
+  // o topo encher-se-ia de zeros e não diria nada.
+  const ranking = useMemo(
+    () =>
+      people
+        .filter((p) => (p.ratingCount ?? 0) > 0)
+        .sort((a, b) => b.rating - a.rating || (b.ratingCount ?? 0) - (a.ratingCount ?? 0))
+        .slice(0, 10),
+    [people],
+  )
 
   if (!profLoading && !profile) {
     return (
@@ -69,6 +73,52 @@ export function FriendProfileScreen() {
           </span>
         </section>
 
+        {/* Ranking by average rating */}
+        {ranking.length > 0 && (
+          <section className="stats-card">
+            <div className="stats-card__head">
+              <h2><Trophy size={16} style={{ verticalAlign: '-3px' }} /> Ranking</h2>
+              <span className="stats-card__sub">Por avaliação média</span>
+            </div>
+            <ul className="top-list">
+              {ranking.map((p, i) => (
+                <li key={p.id}>
+                  <Link
+                    to={`/friends/${friendId}/person/${p.id}`}
+                    className="top-row"
+                  >
+                    <span
+                      className="top-row__rank"
+                      style={{ background: typeTheme(p.types[0]).accent }}
+                    >
+                      #{i + 1}
+                    </span>
+                    <Avatar
+                      name={p.name}
+                      type={p.types[0]}
+                      avatarId={p.avatarId}
+                      ownerId={friendId}
+                      size={40}
+                    />
+                    <div className="top-row__text">
+                      <span className="top-row__name">{p.name}</span>
+                      <span className="top-row__sub">{formatNumber(p.number)}</span>
+                    </div>
+                    <div className="top-row__metric">
+                      <span className="top-row__val">
+                        <Star size={14} /> {p.rating.toFixed(1)}
+                      </span>
+                      <span className="top-row__lbl">
+                        {p.ratingCount} {p.ratingCount === 1 ? 'voto' : 'votos'}
+                      </span>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {/* Grid of public people */}
         <section className="stats-card">
           <div className="stats-card__head">
@@ -92,12 +142,14 @@ export function FriendProfileScreen() {
           )}
         </section>
 
-        <button
+        {/* Os desafios montam-se no ecrã de Combate, onde se escolhe o modo e
+            o tamanho da equipa. */}
+        <Link
+          to={`/battle?mode=friend&friend=${friendId}`}
           className="btn btn--primary friend-compare-cta"
-          onClick={() => setChallenging(true)}
         >
           <Swords size={17} /> Desafiar {profile?.name?.split(' ')[0] || 'amigo'}
-        </button>
+        </Link>
         <Link
           to={`/compare?friend=${friendId}`}
           className="btn btn--ghost friend-compare-cta"
@@ -105,14 +157,6 @@ export function FriendProfileScreen() {
           Comparar com uma tua
         </Link>
       </div>
-
-      {challenging && (
-        <MyPersonPicker
-          title="Escolhe quem vai lutar"
-          onClose={() => setChallenging(false)}
-          onSelect={(p) => void onChallenge(p)}
-        />
-      )}
     </div>
   )
 }

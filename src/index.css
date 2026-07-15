@@ -105,6 +105,96 @@ img {
   padding: 0 16px calc(env(safe-area-inset-bottom) + 96px);
 }
 
+/* ---------- Bottom tab bar -------------------------------------- */
+
+:root {
+  --tabbar-h: 58px;
+}
+
+/* Ecrãs dentro do TabLayout deixam espaço para a barra fixa. */
+.has-tabbar .screen,
+.has-tabbar .detail {
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--tabbar-h) + 40px);
+}
+
+.has-tabbar .fab {
+  bottom: calc(env(safe-area-inset-bottom) + var(--tabbar-h) + 18px);
+}
+
+.tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--maxw);
+  height: calc(env(safe-area-inset-bottom) + var(--tabbar-h));
+  padding-bottom: env(safe-area-inset-bottom);
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  align-items: stretch;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border-top: 1px solid var(--line);
+  z-index: 60;
+}
+
+.tabbar__tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  transition: color 0.16s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tabbar__tab.is-active {
+  color: #4e86eb;
+}
+
+.tabbar__icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 26px;
+  border-radius: 9px;
+  transition: background 0.16s ease, transform 0.16s ease;
+}
+
+.tabbar__tab.is-active .tabbar__icon {
+  background: color-mix(in srgb, #4e86eb 14%, transparent);
+  transform: translateY(-1px);
+}
+
+.tabbar__tab:active .tabbar__icon {
+  transform: scale(0.9);
+}
+
+.tabbar__badge {
+  position: absolute;
+  top: -3px;
+  right: 0;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #e23b4e;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--surface);
+}
+
 .screen--center {
   display: flex;
   flex-direction: column;
@@ -356,6 +446,10 @@ img {
   white-space: nowrap;
   color: #fff;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+}
+.type-badge--xs {
+  padding: 1px 6px;
+  font-size: 8.5px;
 }
 .type-badge--sm {
   padding: 2px 8px;
@@ -2467,6 +2561,15 @@ select.input {
 .cheat-flag--them {
   background: #7C2E9E;
 }
+.cheat-flag--fertile {
+  background: #2FAE82;
+}
+.cheat-flag--drunk {
+  background: #E0A62A;
+}
+.cheat-flag--sober {
+  background: #5C90F0;
+}
 
 /* Cheat checkbox toggles in add-moment form */
 .cheat-toggles {
@@ -3450,5 +3553,524 @@ select.input {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+}
+
+/* ================================================================== *\
+   Combate — arena, animações, equipas e setup
+\* ================================================================== */
+
+/* ---------- Arena ---------------------------------------------- *
+   Sobrepõe o cenário base: céu em camadas, sol, montanhas ao longe. */
+
+.pkmn__scene {
+  border-color: #23242c;
+  background: linear-gradient(
+    180deg,
+    #5b7fd4 0%,
+    #7ba7e6 26%,
+    #a9cfee 44%,
+    #e8d9a8 51%,
+    #d2a86d 62%,
+    #b3813f 82%,
+    #8f6230 100%
+  );
+  box-shadow: var(--shadow-card), inset 0 0 60px -18px rgba(0, 0, 0, 0.5);
+}
+
+/* Sol + vinheta */
+.pkmn__scene::before {
+  background:
+    radial-gradient(9% 6% at 80% 12%, rgba(255, 250, 226, 0.95), rgba(255, 240, 190, 0.35) 60%, transparent 72%),
+    radial-gradient(120% 60% at 78% 8%, rgba(255, 244, 214, 0.4), transparent 58%),
+    radial-gradient(140% 90% at 50% 125%, rgba(0, 0, 0, 0.3), transparent 62%);
+  animation: sun-pulse 6s ease-in-out infinite;
+}
+@keyframes sun-pulse {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 1; }
+}
+
+/* Montanhas + linha do horizonte */
+.pkmn__scene::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 34%;
+  height: 20%;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    linear-gradient(180deg, transparent 62%, rgba(255, 255, 255, 0.22) 63%, transparent 66%),
+    conic-gradient(from 135deg at 22% 100%, transparent 0 25%, rgba(72, 104, 78, 0.75) 25% 50%, transparent 50%),
+    conic-gradient(from 135deg at 58% 100%, transparent 0 25%, rgba(58, 88, 66, 0.7) 25% 50%, transparent 50%),
+    conic-gradient(from 135deg at 86% 100%, transparent 0 25%, rgba(80, 112, 84, 0.6) 25% 50%, transparent 50%);
+}
+
+:root[data-theme='dark'] .pkmn__scene {
+  background: linear-gradient(
+    180deg,
+    #171b33 0%,
+    #232a52 24%,
+    #38406e 42%,
+    #5a4a55 51%,
+    #4b3a37 64%,
+    #33262a 84%,
+    #241a1e 100%
+  );
+}
+:root[data-theme='dark'] .pkmn__scene::before {
+  background:
+    radial-gradient(7% 5% at 78% 12%, rgba(226, 235, 255, 0.95), rgba(180, 200, 255, 0.28) 60%, transparent 72%),
+    radial-gradient(120% 60% at 78% 8%, rgba(150, 175, 255, 0.16), transparent 58%),
+    radial-gradient(140% 90% at 50% 125%, rgba(0, 0, 0, 0.55), transparent 62%);
+}
+
+/* ---------- Animações de ataque -------------------------------- */
+
+/* Investida: o lutador avança sobre o adversário e recua. */
+.pkmn__mon--ally.is-striking {
+  animation: strike-ally 0.38s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.pkmn__mon--foe.is-striking {
+  animation: strike-foe 0.38s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+@keyframes strike-ally {
+  0% { transform: translate(0, 0); }
+  45% { transform: translate(34px, -22px) scale(1.06); }
+  100% { transform: translate(0, 0); }
+}
+@keyframes strike-foe {
+  0% { transform: translate(0, 0); }
+  45% { transform: translate(-30px, 20px) scale(1.06); }
+  100% { transform: translate(0, 0); }
+}
+
+/* Rebentamento com a cor do tipo do golpe, por cima do alvo. */
+.hit-fx {
+  position: absolute;
+  inset: -14px;
+  z-index: 2;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in srgb, var(--fx) 90%, white) 0%,
+    var(--fx) 32%,
+    transparent 66%
+  );
+  animation: hit-burst 0.5s ease-out forwards;
+}
+.hit-fx::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid var(--fx);
+  animation: hit-ring 0.5s ease-out forwards;
+}
+@keyframes hit-burst {
+  0% { opacity: 0.95; transform: scale(0.35); }
+  60% { opacity: 0.5; transform: scale(1.05); }
+  100% { opacity: 0; transform: scale(1.35); }
+}
+@keyframes hit-ring {
+  0% { opacity: 0.9; transform: scale(0.4); }
+  100% { opacity: 0; transform: scale(1.8); }
+}
+
+/* Queda mais dramática. */
+.pkmn__mon.is-fainted {
+  opacity: 0;
+  transform: translateY(30px) rotate(-12deg) scale(0.9);
+  filter: grayscale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pkmn__mon--ally.is-striking,
+  .pkmn__mon--foe.is-striking,
+  .pkmn__mon.is-hit,
+  .pkmn__mon.is-hit .avatar,
+  .hit-fx,
+  .hit-fx::after,
+  .dmg-pop,
+  .pkmn__scene::before {
+    animation: none;
+  }
+  .hit-fx {
+    opacity: 0;
+  }
+}
+
+/* ---------- Tipos + bolinhas de equipa na caixa de info -------- */
+
+.info-box__types {
+  display: flex;
+  gap: 3px;
+  margin: 1px 0 3px;
+}
+
+.team-dots {
+  display: flex;
+  gap: 3px;
+  margin-top: 4px;
+}
+.team-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #58d860;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.team-dot.is-out {
+  background: #6b7280;
+  opacity: 0.5;
+}
+.team-dot.is-active {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 0 0 2px rgba(255, 255, 255, 0.85);
+}
+
+/* ---------- Banco / trocas ------------------------------------- */
+
+.switch-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px;
+  border-radius: 10px;
+  border: 2px solid var(--line-strong);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink-soft);
+}
+.switch-cta:active {
+  transform: scale(0.98);
+}
+
+.switch-menu {
+  border: 3px solid #2f2f37;
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 10px;
+}
+.switch-menu__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.switch-menu__back {
+  font-size: 12px;
+  font-weight: 800;
+  color: #4e86eb;
+}
+.switch-menu__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+.switch-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 2px solid var(--line);
+  background: var(--bg);
+  text-align: left;
+}
+.switch-cell:active {
+  transform: scale(0.98);
+}
+.switch-cell__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.switch-cell__name {
+  font-size: 13px;
+  font-weight: 800;
+}
+.switch-cell__hp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.switch-cell__track {
+  width: 62px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--line-strong);
+  overflow: hidden;
+}
+.switch-cell__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+.switch-cell__lv {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+/* ---------- Setup: modo, tamanho, equipas ---------------------- */
+
+.mode-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 8px 0 18px;
+}
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 10px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink-soft);
+  text-align: center;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.mode-card b {
+  font-size: 14px;
+  color: var(--ink);
+}
+.mode-card small {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--muted);
+}
+.mode-card.is-active {
+  border-color: #4e86eb;
+  background: color-mix(in srgb, #4e86eb 10%, var(--surface));
+  color: #4e86eb;
+}
+.mode-card:active {
+  transform: scale(0.97);
+}
+
+.size-picker {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+.size-pick {
+  padding: 10px 0;
+  border-radius: 10px;
+  border: 2px solid var(--line-strong);
+  background: var(--surface);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink-soft);
+}
+.size-pick.is-active {
+  border-color: #e4572e;
+  background: color-mix(in srgb, #e4572e 12%, var(--surface));
+  color: #e4572e;
+}
+.size-pick:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.team-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 6px 0 16px;
+}
+.team-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 2px dashed var(--line-strong);
+  background: var(--surface);
+  text-align: left;
+  transition: border-color 0.15s ease;
+}
+.team-slot:has(.avatar) {
+  border-style: solid;
+}
+.team-slot--waiting {
+  cursor: default;
+}
+.team-slot__label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.team-slot__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.team-slot__empty {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 2px dashed var(--line-strong);
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.team-slot__names {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.team-slot__meta {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.team-slot__types {
+  display: flex;
+  gap: 4px;
+}
+
+/* ---------- Picker multi-seleção ------------------------------- */
+
+.picker__count {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+}
+.picker__item.is-picked {
+  background: color-mix(in srgb, #4e86eb 12%, transparent);
+  border-radius: 10px;
+}
+.picker__item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.picker__check {
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 900;
+  color: #fff;
+  flex-shrink: 0;
+}
+.picker__check.is-on {
+  background: #4e86eb;
+  border-color: #4e86eb;
+}
+.picker__foot {
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+}
+.picker__foot .btn {
+  width: 100%;
+}
+
+/* ---------- Recompensa multi-linha ----------------------------- */
+
+.battle-reward__lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+/* ---------- Aniversários --------------------------------------- */
+
+.bday-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bday {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  border-radius: 10px;
+}
+.bday:active {
+  background: var(--bg);
+}
+.bday__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.bday__name {
+  font-size: 13.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bday__date {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.bday__when {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.bday__when.is-today {
+  color: #fff;
+  background: #ec5a96;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.bday.is-today {
+  background: color-mix(in srgb, #ec5a96 10%, transparent);
+}
+
+/* ---------- Aviso de janela fértil no formulário --------------- */
+
+.moment-form__fertile {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #1e8c66;
+  background: color-mix(in srgb, #2fae82 14%, transparent);
 }
 

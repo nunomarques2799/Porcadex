@@ -11,16 +11,24 @@ export type StatKey =
 
 export type Stats = Record<StatKey, number> // each 0–100
 
+/** How sober you were for a given moment. */
+export type MomentCondition = 'bebado' | 'sobrio'
+
 /** A memorable moment in the relationship (the "moves" / timeline tab).
  *  `kind` records whether this specific encounter was a kiss or sex — the same
  *  person can have many. `userCheated` / `personCheated` mark this specific
- *  moment as a "traição" from either side. */
+ *  moment as a "traição" from either side.
+ *
+ *  Note there is no `fertile` flag: whether a moment landed in the fertile
+ *  window is derived from its `date` plus the user's own cycle settings, so it
+ *  stays correct if those settings are later fixed. See `data/cycle`. */
 export interface Moment {
   id: string
   title: string
   date?: string // ISO yyyy-mm-dd
   note?: string
   kind?: 'beijo' | 'sexo'
+  condition?: MomentCondition
   userCheated?: boolean
   personCheated?: boolean
 }
@@ -72,6 +80,8 @@ export interface Person {
   gender?: Gender
   private?: boolean // hidden unless "mostrar privados" is on
   relationship: string // 'beijo' | 'sexo'
+  /** Is (or was) an ex-partner of yours. Drives the "ex" badges. */
+  ex?: boolean
   types: string[] // Pokémon-style types, 1–2 keys into POKE_TYPES
   country?: string // numeric ISO id matching the world map
   ball: string // key into BALLS

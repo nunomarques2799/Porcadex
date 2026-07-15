@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Plus, Heart, X, Sun, Moon, BarChart3, Crown, ArrowLeftRight, User, Users, Lock, Swords, Bell } from 'lucide-react'
+import { Search, Plus, Heart, X, Sun, Moon, Crown, User, Lock } from 'lucide-react'
 import { usePeople } from '../store/people'
-import { useIncomingChallenges } from '../lib/battles'
 import { useTheme } from '../lib/theme'
 import { useHomeCountry } from '../lib/settings'
+import { useUserProfile } from '../lib/userProfile'
 import { countryName } from '../data/countries'
 import { totalXp, levelInfo } from '../data/xp'
 import { PersonCard } from '../components/PersonCard'
@@ -16,8 +16,8 @@ export function ListScreen() {
   const { people } = usePeople()
   const { theme, toggle } = useTheme()
   const [home] = useHomeCountry()
-  const { challenges } = useIncomingChallenges()
-  const level = levelInfo(totalXp(people, home)).level
+  const [profile] = useUserProfile()
+  const level = levelInfo(totalXp(people, home, profile)).level
   const [query, setQuery] = useState('')
   const [dex, setDex] = useState<Dex>('todos')
   const [quick, setQuick] = useState<Quick>('todos')
@@ -58,25 +58,10 @@ export function ListScreen() {
               {people.length} {people.length === 1 ? 'pessoa' : 'pessoas'}
             </p>
           </div>
+          {/* Combate, Comparar, Amigos e Stats vivem agora na barra de baixo. */}
           <div className="list-header__actions">
             <Link to="/me" className="theme-toggle" aria-label="Meu perfil">
               <User size={20} />
-            </Link>
-            <Link to="/friends" className="theme-toggle" aria-label="Amigos">
-              <Users size={20} />
-            </Link>
-            <Link to="/compare" className="theme-toggle" aria-label="Comparar">
-              <ArrowLeftRight size={20} />
-            </Link>
-            <Link to="/battle" className="theme-toggle" aria-label="Combate">
-              <Swords size={20} />
-            </Link>
-            <Link to="/challenges" className="theme-toggle theme-toggle--badge" aria-label="Desafios">
-              <Bell size={20} />
-              {challenges.length > 0 && <span className="notif-badge">{challenges.length}</span>}
-            </Link>
-            <Link to="/stats" className="theme-toggle" aria-label="Estatísticas">
-              <BarChart3 size={20} />
             </Link>
             <button
               className="theme-toggle"

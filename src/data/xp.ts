@@ -1,4 +1,5 @@
-import type { Person, PublicPerson } from '../types'
+import type { Person, PublicPerson, Moment } from '../types'
+import { isFertileDate, type CycleConfig } from './cycle'
 
 // XP economy: a kiss is worth something, sex more, and international / legendary
 // conquests stack extra on top.
@@ -11,30 +12,49 @@ export const XP = {
   // conquest XP. Sex is worth more than a kiss.
   momentBeijo: 5,
   momentSexo: 15,
+  // Bónus por sexo dentro da janela fértil — risco, logo recompensa.
+  momentFertil: 25,
+}
+
+/** Did this moment land in the fertile window? Only ever true for sex with a
+ *  date, and only when the user tracks a cycle (see `data/cycle`). */
+export function momentIsFertile(m: Moment, cycle?: CycleConfig): boolean {
+  return !!cycle && m.kind === 'sexo' && isFertileDate(cycle, m.date)
+}
+
+/** How many fertile-window sex moments are recorded across everyone. */
+export function fertileMomentCount(people: Person[], cycle?: CycleConfig): number {
+  if (!cycle) return 0
+  return people.reduce(
+    (sum, p) => sum + p.moments.filter((m) => momentIsFertile(m, cycle)).length,
+    0,
+  )
 }
 
 /** XP the person contributes to the trainer level (global). */
-export function xpForPerson(p: Person, home: string): number {
+export function xpForPerson(p: Person, home: string, cycle?: CycleConfig): number {
   let xp = p.relationship === 'sexo' ? XP.sexo : XP.beijo
   if (p.country && p.country !== home) xp += XP.international
   if (p.legendary) xp += XP.legendary
-  xp += xpFromMoments(p)
+  xp += xpFromMoments(p, cycle)
   return xp
 }
 
 /** Sum of XP earned from a person's timeline moments alone. */
-export function xpFromMoments(p: Person): number {
+export function xpFromMoments(p: Person, cycle?: CycleConfig): number {
   return p.moments.reduce((sum, m) => {
-    if (m.kind === 'sexo') return sum + XP.momentSexo
+    if (m.kind === 'sexo') {
+      return sum + XP.momentSexo + (momentIsFertile(m, cycle) ? XP.momentFertil : 0)
+    }
     if (m.kind === 'beijo') return sum + XP.momentBeijo
     return sum
   }, 0)
 }
 
 /** Per-person "pokémon" XP — grows as you accumulate moments with them. */
-export function personXp(p: Person): number {
+export function personXp(p: Person, cycle?: CycleConfig): number {
   const base = p.relationship === 'sexo' ? XP.sexo : XP.beijo
-  return base + xpFromMoments(p)
+  return base + xpFromMoments(p, cycle)
 }
 
 /** Per-person triangular level curve, gentler than the trainer curve:
@@ -58,8 +78,8 @@ export function personLevelInfo(xp: number): LevelInfo {
   }
 }
 
-export function totalXp(people: Person[], home: string): number {
-  return people.reduce((sum, p) => sum + xpForPerson(p, home), 0)
+export function totalXp(people: Person[], home: string, cycle?: CycleConfig): number {
+  return people.reduce((sum, p) => sum + xpForPerson(p, home, cycle), 0)
 }
 
 /** Public XP: what we can compute for a friend's person, where moments are

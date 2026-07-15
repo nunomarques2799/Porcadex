@@ -193,6 +193,7 @@ create index if not exists people_owner_idx on public.people(owner);
 -- Backfill para schemas anteriores.
 alter table public.people add column if not exists battle jsonb default '{}'::jsonb;
 alter table public.people add column if not exists rating_count int default 0;
+alter table public.people add column if not exists is_ex boolean default false;
 
 alter table public.people enable row level security;
 
@@ -298,10 +299,15 @@ create trigger ratings_recompute
 
 -- ------------------------------------------------------------------
 -- battles: PvP em tempo real entre dois users.
--- O `setup` guarda o snapshot (freeze) dos dois lutadores; `turns` a lista de
--- jogadas concluídas; `move_a`/`move_b` a escolha atual de cada lado (colunas
--- separadas para não haver clobber quando ambos escrevem em simultâneo). Cada
--- cliente reconstrói o estado a partir de setup+turns (determinístico).
+-- O `setup` guarda o snapshot (freeze) das duas EQUIPAS (arrays de 1 a 6
+-- lutadores); `turns` a lista de jogadas concluídas; `action_a`/`action_b` a
+-- escolha atual de cada lado (colunas separadas para não haver clobber quando
+-- ambos escrevem em simultâneo). Cada cliente reconstrói o estado a partir de
+-- setup+turns (determinístico).
+--
+-- `challenger_person`/`opponent_person` guardam o lutador principal: são a FK
+-- que a política de inserção usa para confirmar a posse. A equipa completa vai
+-- em `challenger_team`/`opponent_team`.
 -- ------------------------------------------------------------------
 create table if not exists public.battles (
   id uuid primary key default gen_random_uuid(),
@@ -321,6 +327,24 @@ create table if not exists public.battles (
   updated_at timestamptz default now(),
   check (challenger <> opponent)
 );
+
+-- Backfill para schemas anteriores às batalhas por equipa. As colunas antigas
+-- move_a/move_b (int) ficam por usar: as ações passaram a jsonb porque agora
+-- também codificam trocas de lutador, não só o índice do ataque.
+alter table public.battles add column if not exists challenger_team uuid[];
+alter table public.battles add column if not exists opponent_team uuid[];
+alter table public.battles add column if not exists team_size int default 1;
+alter table public.battles add column if not exists action_a jsonb;
+alter table public.battles add column if not exists action_b jsonb;
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'battles_team_size_range'
+  ) then
+    alter table public.battles
+      add constraint battles_team_size_range check (team_size between 1 and 6);
+  end if;
+end $$;
 
 create index if not exists battles_opponent_idx on public.battles(opponent, status);
 create index if not exists battles_challenger_idx on public.battles(challenger, status);

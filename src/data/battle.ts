@@ -5,7 +5,7 @@
 // pessoas de outros users. Ao subir de nível ganha pontos para reforçar um
 // stat à escolha. Estes stats alimentam o dano dos moves.
 
-import type { Person, StatKey, Stats, BattleStats, BattleData } from '../types'
+import type { StatKey, Stats, BattleStats, BattleData } from '../types'
 
 /* ------------------------------------------------------------------ */
 /* Stats de batalha                                                    */
@@ -687,29 +687,6 @@ export function buildFighter(person: FighterSource): Fighter {
   }
 }
 
-export interface BattleTurn {
-  attacker: 'a' | 'b'
-  moveName: string
-  moveType: string
-  category: MoveCategory
-  damage: number
-  effectiveness: number
-  note: string
-  heal: number
-  aHp: number
-  bHp: number
-  fainted: boolean
-}
-
-export interface BattleResult {
-  a: Fighter // estado inicial (para maxHp / avatar)
-  b: Fighter
-  turns: BattleTurn[]
-  winner: 'a' | 'b' | 'draw'
-}
-
-const MAX_TURNS = 60 // segurança contra combates infinitos
-
 function damageOf(
   attacker: Fighter,
   defender: Fighter,
@@ -751,78 +728,40 @@ function chooseMove(attacker: Fighter, defender: Fighter): Move {
   return best
 }
 
-/** Simula uma batalha completa e determinística entre duas pessoas.
- *  O resultado é sempre igual para o mesmo par (bom para rever). */
-export function simulateBattle(personA: Person, personB: Person): BattleResult {
-  const a = buildFighter(personA)
-  const b = buildFighter(personB)
-  const rnd = mulberry32(hashSeed(a.id + '|' + b.id))
+/* ------------------------------------------------------------------ */
+/* Equipas (1v1 até 6v6)                                               */
+/* ------------------------------------------------------------------ */
 
-  const turns: BattleTurn[] = []
-  // Quem é mais rápido ataca primeiro (desempate pelo seed).
-  let aTurn = a.spe > b.spe || (a.spe === b.spe && rnd() < 0.5)
+/** Tamanho máximo de uma equipa — como no Pokémon. */
+export const MAX_TEAM = 6
 
-  let guard = 0
-  while (a.hp > 0 && b.hp > 0 && guard < MAX_TURNS) {
-    guard++
-    const attacker = aTurn ? a : b
-    const defender = aTurn ? b : a
-    const move = chooseMove(attacker, defender)
-
-    let damage = 0
-    let heal = 0
-    let eff = 1
-    let note = ''
-
-    if (move.category === 'estatuto') {
-      heal = Math.round(attacker.maxHp * 0.15)
-      attacker.hp = Math.min(attacker.maxHp, attacker.hp + heal)
-      attacker.atkBuff = Math.min(1.6, attacker.atkBuff * 1.1)
-      note = 'Preparou-se e recuperou'
-    } else {
-      const res = damageOf(attacker, defender, move, 0.85 + rnd() * 0.15)
-      damage = res.dmg
-      eff = res.eff
-      defender.hp = Math.max(0, defender.hp - damage)
-      note = effectivenessNote(eff).text
-    }
-
-    turns.push({
-      attacker: aTurn ? 'a' : 'b',
-      moveName: move.name,
-      moveType: move.type,
-      category: move.category,
-      damage,
-      effectiveness: eff,
-      note,
-      heal,
-      aHp: a.hp,
-      bHp: b.hp,
-      fainted: defender.hp <= 0,
-    })
-
-    aTurn = !aTurn
-  }
-
-  let winner: 'a' | 'b' | 'draw'
-  if (a.hp <= 0 && b.hp <= 0) winner = 'draw'
-  else if (b.hp <= 0) winner = 'a'
-  else if (a.hp <= 0) winner = 'b'
-  // Bateu no limite de turnos: decide por percentagem de HP.
-  else {
-    const aPct = a.hp / a.maxHp
-    const bPct = b.hp / b.maxHp
-    winner = aPct === bPct ? 'draw' : aPct > bPct ? 'a' : 'b'
-  }
-
-  // Devolve os lutadores no estado inicial (HP cheio) para a UI.
-  return {
-    a: { ...a, hp: a.maxHp, atkBuff: 1 },
-    b: { ...b, hp: b.maxHp, atkBuff: 1 },
-    turns,
-    winner,
-  }
+/** Uma equipa em combate: os lutadores e o índice de quem está em campo. */
+export interface TeamState {
+  fighters: Fighter[]
+  active: number
 }
+
+export function buildTeam(sources: FighterSource[]): TeamState {
+  return { fighters: sources.map(buildFighter), active: 0 }
+}
+
+export const activeOf = (t: TeamState): Fighter => t.fighters[t.active]
+export const isAlive = (f: Fighter | undefined): boolean => !!f && f.hp > 0
+export const teamAlive = (t: TeamState): boolean => t.fighters.some(isAlive)
+export const teamFainted = (t: TeamState): number =>
+  t.fighters.filter((f) => f.hp <= 0).length
+
+/** Índices dos lutadores que ainda podem entrar (vivos e fora de campo). */
+export function benchOptions(t: TeamState): number[] {
+  return t.fighters
+    .map((_, i) => i)
+    .filter((i) => i !== t.active && isAlive(t.fighters[i]))
+}
+
+/** O que um lado faz num turno: atacar ou trocar de lutador. */
+export type TurnAction =
+  | { kind: 'move'; index: number }
+  | { kind: 'switch'; to: number }
 
 /* ------------------------------------------------------------------ */
 /* Combate interativo (por turnos)                                     */
@@ -873,6 +812,37 @@ export function aiChooseMove(attacker: Fighter, defender: Fighter): Move {
   return chooseMove(attacker, defender)
 }
 
+/** Qual o melhor lutador do banco para enfrentar o adversário atual: pesa o
+ *  dano que dá, o que leva de volta, e o HP que ainda tem. */
+function bestSwitch(team: TeamState, foe: TeamState): number {
+  const bench = benchOptions(team)
+  if (!bench.length) return team.active
+  const target = activeOf(foe)
+  let best = bench[0]
+  let bestScore = -Infinity
+  for (const i of bench) {
+    const f = team.fighters[i]
+    const out = Math.max(...f.moves.map((m) => damageOf(f, target, m, 0.925).dmg))
+    const incoming = Math.max(...target.moves.map((m) => damageOf(target, f, m, 0.925).dmg))
+    const score = out - incoming * 0.5 + f.hp * 0.1
+    if (score > bestScore) {
+      bestScore = score
+      best = i
+    }
+  }
+  return best
+}
+
+/** A ação da IA no turno: manda outro/a para o ringue se o atual caiu, senão
+ *  ataca com o melhor golpe. */
+export function aiChooseAction(team: TeamState, foe: TeamState): TurnAction {
+  const active = activeOf(team)
+  if (!isAlive(active)) return { kind: 'switch', to: bestSwitch(team, foe) }
+  const mv = chooseMove(active, activeOf(foe))
+  const index = active.moves.indexOf(mv)
+  return { kind: 'move', index: index < 0 ? 0 : index }
+}
+
 /** Golpe de recurso quando ficam sem PP (tipo "Struggle"). */
 export const STRUGGLE: Move = {
   name: 'Luta',
@@ -906,18 +876,30 @@ export function fighterSnapshot(source: FighterSource): FighterSnapshot {
   }
 }
 
-/** Um turno PvP concluído: o índice do ataque escolhido por cada lado. */
+export const teamSnapshot = (sources: FighterSource[]): FighterSnapshot[] =>
+  sources.map(fighterSnapshot)
+
+/** As duas equipas congeladas no arranque da batalha. */
+export interface TeamSetup {
+  a: FighterSnapshot[]
+  b: FighterSnapshot[]
+}
+
+/** Um turno PvP concluído: a ação escolhida por cada lado. */
 export interface PvpTurn {
-  a: number
-  b: number
+  a: TurnAction
+  b: TurnAction
 }
 
 export interface PvpLogEntry {
   turn: number
   who: 'a' | 'b'
-  moveName: string
-  moveType: string
-  category: MoveCategory
+  kind: 'move' | 'switch'
+  /** Quem agiu — com equipas já não se pode assumir o lutador pelo lado. */
+  actor: string
+  moveName?: string
+  moveType?: string
+  category?: MoveCategory
   damage: number
   heal: number
   effectiveness: number
@@ -927,58 +909,137 @@ export interface PvpLogEntry {
 }
 
 export interface PvpState {
-  a: Fighter
-  b: Fighter
+  a: TeamState
+  b: TeamState
   log: PvpLogEntry[]
   finished: boolean
   winner: 'a' | 'b' | null
 }
 
-function snapshotToFighter(s: FighterSnapshot): Fighter {
-  return { ...s, hp: s.maxHp, atkBuff: 1 }
+/** Aceita o formato antigo (um só lutador, pré-equipas) e o novo (array), para
+ *  que batalhas gravadas antes desta mudança continuem a abrir. */
+export function normalizeTeamSetup(raw: unknown): FighterSnapshot[] {
+  if (Array.isArray(raw)) return raw as FighterSnapshot[]
+  if (raw && typeof raw === 'object') return [raw as FighterSnapshot]
+  return []
+}
+
+/** Idem para as ações: antes era só o índice do ataque. */
+export function normalizeAction(raw: unknown): TurnAction {
+  if (typeof raw === 'number') return { kind: 'move', index: raw }
+  const r = (raw ?? {}) as { kind?: string; index?: number; to?: number }
+  if (r.kind === 'switch') return { kind: 'switch', to: Number(r.to ?? 0) }
+  return { kind: 'move', index: Number(r.index ?? 0) }
+}
+
+function snapshotsToTeam(snaps: FighterSnapshot[]): TeamState {
+  return {
+    fighters: snaps.map((s) => ({ ...s, hp: s.maxHp, atkBuff: 1 })),
+    active: 0,
+  }
 }
 
 /** Reconstrói o estado atual da batalha a partir do setup + lista de turnos
  *  concluídos. DETERMINÍSTICO: ambos os clientes obtêm exatamente o mesmo
- *  resultado (mesmo seed → mesma variância). */
-export function replayPvp(
-  setup: { a: FighterSnapshot; b: FighterSnapshot },
-  seed: number,
-  turns: PvpTurn[],
-): PvpState {
-  const a = snapshotToFighter(setup.a)
-  const b = snapshotToFighter(setup.b)
+ *  resultado (mesmo seed → mesma variância).
+ *
+ *  Ordem de um turno, como no Pokémon: as trocas resolvem-se primeiro (quem
+ *  troca abdica do ataque desse turno), e só depois os ataques, por velocidade
+ *  do lutador que ficou em campo. */
+export function replayPvp(setup: TeamSetup, seed: number, turns: PvpTurn[]): PvpState {
+  const a = snapshotsToTeam(setup.a)
+  const b = snapshotsToTeam(setup.b)
   const log: PvpLogEntry[] = []
   let winner: 'a' | 'b' | null = null
 
+  const hpOf = () => ({
+    aHp: activeOf(a)?.hp ?? 0,
+    bHp: activeOf(b)?.hp ?? 0,
+  })
+
   for (let ti = 0; ti < turns.length && !winner; ti++) {
     const rng = mulberry32((seed >>> 0) + ti * 2654435761)
-    const mvA = a.moves[turns[ti].a] ?? STRUGGLE
-    const mvB = b.moves[turns[ti].b] ?? STRUGGLE
-    const aFirst = a.spe > b.spe || (a.spe === b.spe && rng() < 0.5)
-    const order: { who: 'a' | 'b'; mv: Move }[] = aFirst
-      ? [{ who: 'a', mv: mvA }, { who: 'b', mv: mvB }]
-      : [{ who: 'b', mv: mvB }, { who: 'a', mv: mvA }]
+    const acts: Record<'a' | 'b', TurnAction> = {
+      a: normalizeAction(turns[ti].a),
+      b: normalizeAction(turns[ti].b),
+    }
 
-    for (const { who, mv } of order) {
-      const atk = who === 'a' ? a : b
-      const def = who === 'a' ? b : a
-      if (atk.hp <= 0) continue
+    // 1) Trocas — sempre 'a' antes de 'b' para não depender da velocidade.
+    for (const who of ['a', 'b'] as const) {
+      const act = acts[who]
+      if (act.kind !== 'switch') continue
+      const team = who === 'a' ? a : b
+      if (act.to === team.active || !isAlive(team.fighters[act.to])) continue
+      team.active = act.to
+      log.push({
+        turn: ti,
+        who,
+        kind: 'switch',
+        actor: activeOf(team).name,
+        damage: 0,
+        heal: 0,
+        effectiveness: 1,
+        fainted: false,
+        ...hpOf(),
+      })
+    }
+
+    // 1b) Rede de segurança: um lado com o lutador em campo caído mas ainda
+    // com banco TEM de mandar alguém. A UI força a troca, mas o replay não
+    // pode depender disso — sem isto, um cliente que enviasse um ataque em vez
+    // da troca deixava o combate empancado para sempre (ninguém pode atacar um
+    // lutador já caído).
+    for (const who of ['a', 'b'] as const) {
+      const team = who === 'a' ? a : b
+      if (isAlive(activeOf(team))) continue
+      const bench = benchOptions(team)
+      if (!bench.length) continue
+      team.active = bench[0]
+      log.push({
+        turn: ti,
+        who,
+        kind: 'switch',
+        actor: activeOf(team).name,
+        damage: 0,
+        heal: 0,
+        effectiveness: 1,
+        fainted: false,
+        ...hpOf(),
+      })
+    }
+
+    // 2) Ataques, por velocidade de quem está em campo.
+    const fa = activeOf(a)
+    const fb = activeOf(b)
+    const aFirst = fa.spe > fb.spe || (fa.spe === fb.spe && rng() < 0.5)
+    const order: ('a' | 'b')[] = aFirst ? ['a', 'b'] : ['b', 'a']
+
+    for (const who of order) {
+      const act = acts[who]
+      if (act.kind !== 'move') continue
+      const atkTeam = who === 'a' ? a : b
+      const defTeam = who === 'a' ? b : a
+      const atk = activeOf(atkTeam)
+      const def = activeOf(defTeam)
+      // Um lutador caído não ataca; o lado tem de trocar num turno seguinte.
+      if (!isAlive(atk) || !isAlive(def)) continue
+      const mv = atk.moves[act.index] ?? STRUGGLE
       const res = applyMove(atk, def, mv, 0.85 + rng() * 0.15)
       log.push({
         turn: ti,
         who,
+        kind: 'move',
+        actor: atk.name,
         moveName: mv.name,
         moveType: mv.type,
         category: res.category,
         damage: res.damage,
         heal: res.heal,
         effectiveness: res.effectiveness,
-        aHp: a.hp,
-        bHp: b.hp,
         fainted: res.fainted,
+        ...hpOf(),
       })
-      if (def.hp <= 0) {
+      if (!teamAlive(defTeam)) {
         winner = who
         break
       }

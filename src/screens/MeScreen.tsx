@@ -32,7 +32,10 @@ export function MeScreen() {
     }
   }
 
-  const trainer = useMemo(() => levelInfo(totalXp(people, home)), [people, home])
+  const trainer = useMemo(
+    () => levelInfo(totalXp(people, home, profile)),
+    [people, home, profile],
+  )
 
   const enriched = useMemo(
     () =>
@@ -201,7 +204,7 @@ export function MeScreen() {
                     <span>Próximo período</span>
                     <b>
                       {formatDate(iso(cycle.nextPeriod))}
-                      {cycle.daysToNextPeriod !== null && ` (em ${cycle.daysToNextPeriod} d.)`}
+                      {` (em ${cycle.daysToNextPeriod} d.)`}
                     </b>
                   </li>
                 </ul>

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { Person } from '../types'
 import {
-  fighterSnapshot,
+  teamSnapshot,
   replayPvp,
-  type FighterSnapshot,
+  normalizeTeamSetup,
+  type TeamSetup,
+  type TurnAction,
   type PvpTurn,
 } from '../data/battle'
 import { supabase } from './supabase'
@@ -14,15 +16,21 @@ export type BattleStatus = 'pending' | 'active' | 'finished' | 'declined' | 'can
 export interface BattleRow {
   id: string
   challenger: string
+  /** Lutador principal — mantido como coluna própria porque a FK e a política
+   *  de RLS de inserção verificam a posse através dele. */
   challenger_person: string
+  challenger_team: string[] | null
   opponent: string
   opponent_person: string | null
+  opponent_team: string[] | null
   status: BattleStatus
+  /** Quantas pessoas por lado (1–6). */
+  team_size: number
   seed: number
-  setup: { a?: FighterSnapshot; b?: FighterSnapshot }
+  setup: { a?: unknown; b?: unknown }
   turns: PvpTurn[]
-  move_a: number | null
-  move_b: number | null
+  action_a: TurnAction | null
+  action_b: TurnAction | null
   winner: string | null
   created_at: string
 }
@@ -32,16 +40,33 @@ export function sideOf(row: BattleRow, userId: string): 'a' | 'b' {
   return row.challenger === userId ? 'a' : 'b'
 }
 
+/** As duas equipas do setup, normalizadas (tolera linhas antigas 1v1). */
+export function battleSetup(row: BattleRow): TeamSetup {
+  return {
+    a: normalizeTeamSetup(row.setup?.a),
+    b: normalizeTeamSetup(row.setup?.b),
+  }
+}
+
+/** Os ids das MINHAS pessoas neste combate, na ordem da equipa. */
+export function myTeamIds(row: BattleRow, side: 'a' | 'b'): string[] {
+  const team = side === 'a' ? row.challenger_team : row.opponent_team
+  if (team && team.length) return team
+  const lead = side === 'a' ? row.challenger_person : row.opponent_person
+  return lead ? [lead] : []
+}
+
 /* ------------------------------------------------------------------ */
 /* Ações                                                               */
 /* ------------------------------------------------------------------ */
 
-/** Desafia um amigo com a minha pessoa. Devolve o id da batalha criada. */
+/** Desafia um amigo com a minha equipa (1–6). Devolve o id da batalha criada. */
 export async function challengeFriend(
-  myPerson: Person,
+  myTeam: Person[],
   opponentUserId: string,
 ): Promise<{ id?: string; error?: string }> {
   if (!supabase) return { error: 'Sem ligação' }
+  if (!myTeam.length) return { error: 'Equipa vazia' }
   const { data: auth } = await supabase.auth.getUser()
   const me = auth.user?.id
   if (!me) return { error: 'Sem sessão' }
@@ -50,11 +75,13 @@ export async function challengeFriend(
     .from('battles')
     .insert({
       challenger: me,
-      challenger_person: myPerson.id,
+      challenger_person: myTeam[0].id,
+      challenger_team: myTeam.map((p) => p.id),
       opponent: opponentUserId,
       status: 'pending',
+      team_size: myTeam.length,
       seed,
-      setup: { a: fighterSnapshot(myPerson) },
+      setup: { a: teamSnapshot(myTeam) },
       turns: [],
     })
     .select('id')
@@ -63,10 +90,10 @@ export async function challengeFriend(
   return { id: (data as { id: string }).id }
 }
 
-/** Aceita um desafio, escolhendo a minha pessoa. Arranca a batalha. */
+/** Aceita um desafio com a minha equipa. Arranca a batalha. */
 export async function acceptChallenge(
   battleId: string,
-  myPerson: Person,
+  myTeam: Person[],
 ): Promise<{ error?: string }> {
   if (!supabase) return { error: 'Sem ligação' }
   const { data: row, error: e1 } = await supabase
@@ -75,16 +102,22 @@ export async function acceptChallenge(
     .eq('id', battleId)
     .single()
   if (e1) return { error: e1.message }
-  const setup = { ...((row as BattleRow).setup ?? {}), b: fighterSnapshot(myPerson) }
+  const r = row as BattleRow
+  const size = r.team_size || normalizeTeamSetup(r.setup?.a).length || 1
+  if (myTeam.length !== size) {
+    return { error: `Este desafio é ${size} vs ${size}.` }
+  }
+  const setup = { ...(r.setup ?? {}), b: teamSnapshot(myTeam) }
   const { error } = await supabase
     .from('battles')
     .update({
-      opponent_person: myPerson.id,
+      opponent_person: myTeam[0].id,
+      opponent_team: myTeam.map((p) => p.id),
       status: 'active',
       setup,
       turns: [],
-      move_a: null,
-      move_b: null,
+      action_a: null,
+      action_b: null,
     })
     .eq('id', battleId)
   if (error) return { error: error.message }
@@ -96,28 +129,29 @@ export async function setBattleStatus(id: string, status: BattleStatus): Promise
   await supabase.from('battles').update({ status }).eq('id', id)
 }
 
-/** Submete a MINHA jogada (coluna separada por lado — sem clobber). */
-export async function submitMove(
+/** Submete a MINHA ação (coluna separada por lado — sem clobber). */
+export async function submitAction(
   id: string,
   side: 'a' | 'b',
-  moveIndex: number,
+  action: TurnAction,
 ): Promise<void> {
   if (!supabase) return
   await supabase
     .from('battles')
-    .update(side === 'a' ? { move_a: moveIndex } : { move_b: moveIndex })
+    .update(side === 'a' ? { action_a: action } : { action_b: action })
     .eq('id', id)
 }
 
-/** Só o desafiante (host) consolida o turno quando ambas as jogadas chegaram,
+/** Só o desafiante (host) consolida o turno quando ambas as ações chegaram,
  *  para evitar corridas. Reproduz o combate para detetar o fim. */
 export async function commitTurnIfReady(row: BattleRow): Promise<void> {
   if (!supabase) return
-  if (row.move_a == null || row.move_b == null) return
-  if (!row.setup.a || !row.setup.b) return
-  const turns = [...row.turns, { a: row.move_a, b: row.move_b }]
-  const st = replayPvp({ a: row.setup.a, b: row.setup.b }, Number(row.seed), turns)
-  const patch: Record<string, unknown> = { turns, move_a: null, move_b: null }
+  if (row.action_a == null || row.action_b == null) return
+  const setup = battleSetup(row)
+  if (!setup.a.length || !setup.b.length) return
+  const turns = [...row.turns, { a: row.action_a, b: row.action_b }]
+  const st = replayPvp(setup, Number(row.seed), turns)
+  const patch: Record<string, unknown> = { turns, action_a: null, action_b: null }
   if (st.finished) {
     patch.status = 'finished'
     patch.winner = st.winner === 'a' ? row.challenger : row.opponent
