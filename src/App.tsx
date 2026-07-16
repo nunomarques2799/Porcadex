@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './lib/auth'
 import { PeopleProvider } from './store/people'
 import { BottomNav } from './components/BottomNav'
 import { BadgeToast } from './components/BadgeToast'
+import { Tutorial } from './components/Tutorial'
 import { ListScreen } from './screens/ListScreen'
 import { DetailScreen } from './screens/DetailScreen'
 import { EditScreen } from './screens/EditScreen'
@@ -39,6 +40,8 @@ function Gate() {
         <div className="app">
           {/* Fora das Routes: um badge pode cair em qualquer ecrã. */}
           <BadgeToast />
+          {/* Boas-vindas para contas novas, por cima de tudo. */}
+          <Tutorial />
           <Routes>
             {/* Ecrãs com barra de separadores. */}
             <Route element={<TabLayout />}>

@@ -27,6 +27,12 @@ create table if not exists public.profiles (
 -- Backfill for schemas created before friend_code existed.
 alter table public.profiles add column if not exists friend_code text unique;
 
+-- Boas-vindas: fica a false em contas novas e passa a true quando o
+-- utilizador vê (ou salta) o tutorial. Contas antigas ficam com false por
+-- omissão; se não quiseres que o vejam, corre depois:
+--   update public.profiles set tutorial_done = true;
+alter table public.profiles add column if not exists tutorial_done boolean default false;
+
 alter table public.profiles enable row level security;
 
 -- Alphabet without visually ambiguous characters (0/o, 1/l/i).
