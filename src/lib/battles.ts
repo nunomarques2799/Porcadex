@@ -192,8 +192,19 @@ export function useIncomingChallenges(): { challenges: BattleRow[] } {
         () => void load(),
       )
       .subscribe()
+    // Rede de segurança: o Realtime pode não estar ligado, ou o websocket cai
+    // quando a app vai a segundo plano (típico em PWA no telemóvel) e não
+    // reconecta. Sem isto, um desafio enviado enquanto o amigo estava fora
+    // nunca aparecia. Poll periódico + refetch ao voltar a focar.
+    const poll = window.setInterval(() => void load(), 15000)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void load()
+    }
+    document.addEventListener('visibilitychange', onVisible)
     return () => {
       active = false
+      window.clearInterval(poll)
+      document.removeEventListener('visibilitychange', onVisible)
       void supabase!.removeChannel(ch)
     }
   }, [user])
@@ -231,8 +242,18 @@ export function useBattle(id: string | undefined): {
         () => void load(),
       )
       .subscribe()
+    // Fallback caso o Realtime não entregue (websocket caído/segundo plano):
+    // sem isto o combate ficava preso "à espera do adversário". Poll curto
+    // porque aqui a latência conta, mais refetch ao voltar a focar a app.
+    const poll = window.setInterval(() => void load(), 4000)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void load()
+    }
+    document.addEventListener('visibilitychange', onVisible)
     return () => {
       active = false
+      window.clearInterval(poll)
+      document.removeEventListener('visibilitychange', onVisible)
       void supabase!.removeChannel(ch)
     }
   }, [id])
