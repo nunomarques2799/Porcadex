@@ -11,9 +11,13 @@ export const XP = {
   // Extra XP earned per repeat moment on the same person, on top of the base
   // conquest XP. Sex is worth more than a kiss.
   momentBeijo: 5,
-  momentSexo: 15,
+  momentSexo: 20,
   // Bónus por sexo dentro da janela fértil — risco, logo recompensa.
   momentFertil: 25,
+  // XP de treinador por cada vitória de combate cross-user (por porca).
+  // Deliberadamente pequeno: as batalhas alimentam sobretudo as porcas, não o
+  // treinador — a ~¼ de uma relação, precisarias de ~2000 vitórias para o Nv100.
+  battleWin: 5,
 }
 
 /** Did this moment land in the fertile window? Only ever true for sex with a
@@ -78,8 +82,15 @@ export function personLevelInfo(xp: number): LevelInfo {
   }
 }
 
+/** XP de treinador que as vitórias de combate contribuem (pouco, de propósito).
+ *  `wins` só é incrementado em batalhas cross-user, por isso é seguro somá-lo. */
+export function battleXp(people: { battle?: { wins: number } }[]): number {
+  return people.reduce((sum, p) => sum + (p.battle?.wins ?? 0) * XP.battleWin, 0)
+}
+
 export function totalXp(people: Person[], home: string, cycle?: CycleConfig): number {
-  return people.reduce((sum, p) => sum + xpForPerson(p, home, cycle), 0)
+  const conquest = people.reduce((sum, p) => sum + xpForPerson(p, home, cycle), 0)
+  return conquest + battleXp(people)
 }
 
 /** Public XP: what we can compute for a friend's person, where moments are
@@ -92,17 +103,20 @@ export function publicXpForPerson(p: PublicPerson, home: string): number {
 }
 
 export function publicTotalXp(people: PublicPerson[], home: string): number {
-  return people.reduce((sum, p) => sum + publicXpForPerson(p, home), 0)
+  const conquest = people.reduce((sum, p) => sum + publicXpForPerson(p, home), 0)
+  return conquest + battleXp(people)
 }
 
 export function publicPersonXp(p: PublicPerson): number {
   return p.relationship === 'sexo' ? XP.sexo : XP.beijo
 }
 
-// Triangular level curve: reaching level L needs 25·(L-1)·L XP.
-// L1: 0, L2: 50, L3: 150, L4: 300, L5: 500 … (each level costs 50 more).
+// Triangular level curve: reaching level L needs (L-1)·L XP.
+// L1: 0, L2: 2, L3: 6 … L100: 9900. Calibrada para ~500 relações → Nv100
+// (uma relação repetida = momentSexo = 20 XP; 500·20 = 10 000 ≈ Nv100).
+// Nível ≈ √(20 · nº de relações): sobe depressa no início e abranda no fim.
 function xpToReach(level: number): number {
-  return 25 * (level - 1) * level
+  return (level - 1) * level
 }
 
 export interface LevelInfo {

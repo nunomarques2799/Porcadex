@@ -212,10 +212,10 @@ export const BADGES: BadgeDef[] = [
   {
     id: 'level-5',
     title: 'Veterano',
-    desc: 'Chega ao nível 5',
+    desc: 'Chega ao nível 25',
     icon: Zap,
     color: '#F2C21C',
-    target: 5,
+    target: 25,
     value: (c) => levelInfo(totalXp(c.people, c.home)).level,
   },
   {
@@ -338,10 +338,10 @@ export const BADGES: BadgeDef[] = [
   {
     id: 'level-10',
     title: 'Lenda Viva',
-    desc: 'Chega ao nível 10',
+    desc: 'Chega ao nível 50',
     icon: Zap,
     color: '#E0A62A',
-    target: 10,
+    target: 50,
     value: (c) => levelInfo(totalXp(c.people, c.home)).level,
   },
   {

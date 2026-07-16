@@ -134,9 +134,11 @@ export interface BattleLevelInfo {
   progress: number // 0–1
 }
 
-/** Curva triangular de XP de combate. L1:0, L2:50, L3:150, L4:300… */
+/** Curva triangular de XP de combate — mais suave que o treinador para que as
+ *  porcas subam bem a combater. L1:0, L2:30, L3:90… L100:148 500.
+ *  Contra adversários do teu nível, ~130–150 vitórias chegam ao Nv100. */
 function battleXpToReach(level: number): number {
-  return Math.round(25 * (level - 1) * level)
+  return Math.round(15 * (level - 1) * level)
 }
 
 export function battleLevelInfo(xp: number): BattleLevelInfo {
@@ -154,9 +156,10 @@ export function battleLevelInfo(xp: number): BattleLevelInfo {
   }
 }
 
-/** XP ganho ao vencer uma pessoa de nível `loserLevel`. */
+/** XP (de combate, para a porca) ganho ao vencer uma pessoa de nível
+ *  `loserLevel`. Generoso — é a via principal de progressão das porcas. */
 export function xpForWin(loserLevel: number): number {
-  return 30 + loserLevel * 15
+  return 60 + loserLevel * 20
 }
 
 export interface BattleReward {
