@@ -230,176 +230,29 @@ export const MOVE_CATEGORY_META: Record<
   estatuto: { label: 'Estatuto', color: '#6B7A8F' },
 }
 
-/** Movepool por tipo — 7 ataques cada, misturando físicos, especiais e de
- *  estatuto (defesa/buff). Nomes bem safados, ao jeito da app. */
-const TYPE_MOVEPOOLS: Record<string, Move[]> = {
-  normal: [
-    { name: 'Roçadela Safada', type: 'normal', category: 'fisico', power: 45 },
-    { name: 'Esfrega-Esfrega', type: 'normal', category: 'fisico', power: 60 },
-    { name: 'Encoxada Marota', type: 'normal', category: 'fisico', power: 70 },
-    { name: 'Rapidinha Sacana', type: 'normal', category: 'fisico', power: 80 },
-    { name: 'Cavalgada Descontrolada', type: 'normal', category: 'fisico', power: 95 },
-    { name: 'Piscadela Marota', type: 'normal', category: 'estatuto', power: 0 },
-    { name: 'Charme Safado', type: 'normal', category: 'estatuto', power: 0 },
-  ],
-  fire: [
-    { name: 'Lambida Ardente', type: 'fire', category: 'especial', power: 55 },
-    { name: 'Beijo Ardente', type: 'fire', category: 'especial', power: 65 },
-    { name: 'Fogo no Rabo', type: 'fire', category: 'fisico', power: 75 },
-    { name: 'Rabo em Chamas', type: 'fire', category: 'fisico', power: 85 },
-    { name: 'Onda de Tesão', type: 'fire', category: 'especial', power: 90 },
-    { name: 'Erupção de Gozo', type: 'fire', category: 'especial', power: 100 },
-    { name: 'Tesão Ardente', type: 'fire', category: 'estatuto', power: 0 },
-  ],
-  water: [
-    { name: 'Salpico Safado', type: 'water', category: 'especial', power: 45 },
-    { name: 'Jato Molhado', type: 'water', category: 'especial', power: 60 },
-    { name: 'Golfada Gozada', type: 'water', category: 'especial', power: 70 },
-    { name: 'Maré de Tesão', type: 'water', category: 'especial', power: 80 },
-    { name: 'Jorro Explosivo', type: 'water', category: 'especial', power: 90 },
-    { name: 'Tsunami de Leitinho', type: 'water', category: 'especial', power: 100 },
-    { name: 'Ficou Ensopada', type: 'water', category: 'estatuto', power: 0 },
-  ],
-  electric: [
-    { name: 'Choque no Clitóris', type: 'electric', category: 'especial', power: 55 },
-    { name: 'Faísca Safada', type: 'electric', category: 'fisico', power: 60 },
-    { name: 'Vibrador', type: 'electric', category: 'especial', power: 70 },
-    { name: 'Descarga de Gozo', type: 'electric', category: 'especial', power: 80 },
-    { name: 'Vibração Máxima', type: 'electric', category: 'especial', power: 90 },
-    { name: 'Trovoada de Orgasmos', type: 'electric', category: 'especial', power: 100 },
-    { name: 'Arrepio na Espinha', type: 'electric', category: 'estatuto', power: 0 },
-  ],
-  grass: [
-    { name: 'Chicote de Videira', type: 'grass', category: 'fisico', power: 55 },
-    { name: 'Chicotada no Rabo', type: 'grass', category: 'fisico', power: 65 },
-    { name: 'Enrola-Enrola', type: 'grass', category: 'fisico', power: 75 },
-    { name: 'Aperto de Trepadeira', type: 'grass', category: 'fisico', power: 85 },
-    { name: 'Selva Molhada', type: 'grass', category: 'especial', power: 90 },
-    { name: 'Pólen Afrodisíaco', type: 'grass', category: 'estatuto', power: 0 },
-    { name: 'Raiz Bem Funda', type: 'grass', category: 'estatuto', power: 0 },
-  ],
-  ice: [
-    { name: 'Cubo de Gelo no Mamilo', type: 'ice', category: 'especial', power: 55 },
-    { name: 'Beijo Gelado', type: 'ice', category: 'especial', power: 65 },
-    { name: 'Cubos de Gelo Safados', type: 'ice', category: 'especial', power: 75 },
-    { name: 'Duche Gelado a Dois', type: 'ice', category: 'especial', power: 85 },
-    { name: 'Nevasca de Arrepios', type: 'ice', category: 'especial', power: 95 },
-    { name: 'Broche Gelado', type: 'ice', category: 'especial', power: 90 },
-    { name: 'Arrepio de Frio', type: 'ice', category: 'estatuto', power: 0 },
-  ],
-  fighting: [
-    { name: 'Encoxada Bruta', type: 'fighting', category: 'fisico', power: 60 },
-    { name: 'Sarrada', type: 'fighting', category: 'fisico', power: 70 },
-    { name: 'Estocada a Sério', type: 'fighting', category: 'fisico', power: 78 },
-    { name: 'Estocada Profunda', type: 'fighting', category: 'fisico', power: 88 },
-    { name: 'Chave de Pernas', type: 'fighting', category: 'fisico', power: 95 },
-    { name: 'Marretada', type: 'fighting', category: 'fisico', power: 100 },
-    { name: 'Aquecimento Preliminar', type: 'fighting', category: 'estatuto', power: 0 },
-  ],
-  poison: [
-    { name: 'Mordidela no Pescoço', type: 'poison', category: 'fisico', power: 55 },
-    { name: 'Beijo Venenoso', type: 'poison', category: 'especial', power: 65 },
-    { name: 'Chupão Venenoso', type: 'poison', category: 'fisico', power: 72 },
-    { name: 'Ferrão Molhado', type: 'poison', category: 'fisico', power: 80 },
-    { name: 'Corno Tóxico', type: 'poison', category: 'especial', power: 90 },
-    { name: 'Névoa Afrodisíaca', type: 'poison', category: 'estatuto', power: 0 },
-    { name: 'Relação Tóxica', type: 'poison', category: 'estatuto', power: 0 },
-  ],
-  ground: [
-    { name: 'Rebolado na Terra', type: 'ground', category: 'fisico', power: 60 },
-    { name: 'Enterrar Fundo', type: 'ground', category: 'fisico', power: 70 },
-    { name: 'Estocada Funda', type: 'ground', category: 'fisico', power: 82 },
-    { name: 'Meter até ao Fundo', type: 'ground', category: 'fisico', power: 92 },
-    { name: 'Terramoto de Gozo', type: 'ground', category: 'fisico', power: 100 },
-    { name: 'Sentada Devastadora', type: 'ground', category: 'fisico', power: 75 },
-    { name: 'Poeira Afrodisíaca', type: 'ground', category: 'estatuto', power: 0 },
-  ],
-  flying: [
-    { name: 'Bicada Safada', type: 'flying', category: 'fisico', power: 55 },
-    { name: 'Rasante no Rabo', type: 'flying', category: 'fisico', power: 65 },
-    { name: 'Investida Alada', type: 'flying', category: 'fisico', power: 72 },
-    { name: 'Vendaval de Gemidos', type: 'flying', category: 'especial', power: 78 },
-    { name: 'Voo Picado', type: 'flying', category: 'fisico', power: 90 },
-    { name: 'Mergulho na Rachinha', type: 'flying', category: 'fisico', power: 95 },
-    { name: 'Ergue o Mastro', type: 'flying', category: 'estatuto', power: 0 },
-  ],
-  psychic: [
-    { name: 'Fantasia Leve', type: 'psychic', category: 'especial', power: 55 },
-    { name: 'Fantasia Suja', type: 'psychic', category: 'especial', power: 68 },
-    { name: 'Psico-onda de Tesão', type: 'psychic', category: 'especial', power: 80 },
-    { name: 'Controlo Mental Safado', type: 'psychic', category: 'especial', power: 90 },
-    { name: 'Orgasmo Cerebral', type: 'psychic', category: 'especial', power: 100 },
-    { name: 'Olhar Matador', type: 'psychic', category: 'estatuto', power: 0 },
-    { name: 'Hipnose Sedutora', type: 'psychic', category: 'estatuto', power: 0 },
-  ],
-  bug: [
-    { name: 'Picada Marota', type: 'bug', category: 'fisico', power: 50 },
-    { name: 'Investida Rasteira', type: 'bug', category: 'fisico', power: 60 },
-    { name: 'Ferroada Safada', type: 'bug', category: 'fisico', power: 72 },
-    { name: 'Zumbido no Clitóris', type: 'bug', category: 'especial', power: 70 },
-    { name: 'Vibração do Bicho', type: 'bug', category: 'especial', power: 88 },
-    { name: 'Teia Pegajosa', type: 'bug', category: 'estatuto', power: 0 },
-    { name: 'Formigueiro na Virilha', type: 'bug', category: 'estatuto', power: 0 },
-  ],
-  rock: [
-    { name: 'Pedrada no Rabo', type: 'rock', category: 'fisico', power: 60 },
-    { name: 'Tijolada Bruta', type: 'rock', category: 'fisico', power: 72 },
-    { name: 'Avalanche de Tesão', type: 'rock', category: 'fisico', power: 80 },
-    { name: 'Pau que Nasce Torto', type: 'rock', category: 'fisico', power: 88 },
-    { name: 'Pau de Pedra', type: 'rock', category: 'fisico', power: 95 },
-    { name: 'Rochão Duro', type: 'rock', category: 'fisico', power: 100 },
-    { name: 'Muralha de Tesão', type: 'rock', category: 'estatuto', power: 0 },
-  ],
-  ghost: [
-    { name: 'Lambidela Fantasma', type: 'ghost', category: 'fisico', power: 55 },
-    { name: 'Dedada nas Sombras', type: 'ghost', category: 'fisico', power: 70 },
-    { name: 'Sopro no Pescoço', type: 'ghost', category: 'especial', power: 78 },
-    { name: 'Aperto Fantasmagórico', type: 'ghost', category: 'fisico', power: 85 },
-    { name: 'Invasão Traseira', type: 'ghost', category: 'fisico', power: 95 },
-    { name: 'Susto Safado', type: 'ghost', category: 'estatuto', power: 0 },
-    { name: 'Maldição do Tesão', type: 'ghost', category: 'estatuto', power: 0 },
-  ],
-  dragon: [
-    { name: 'Fúria do Dragão', type: 'dragon', category: 'especial', power: 60 },
-    { name: 'Cauda Enrolada', type: 'dragon', category: 'fisico', power: 78 },
-    { name: 'Garra no Rabo', type: 'dragon', category: 'fisico', power: 85 },
-    { name: 'Sopro Quente', type: 'dragon', category: 'especial', power: 90 },
-    { name: 'Estocada do Dragão', type: 'dragon', category: 'fisico', power: 100 },
-    { name: 'Dança do Acasalamento', type: 'dragon', category: 'estatuto', power: 0 },
-    { name: 'Rugido Reprodutor', type: 'dragon', category: 'estatuto', power: 0 },
-  ],
-  dark: [
-    { name: 'Mordida Nocturna', type: 'dark', category: 'fisico', power: 65 },
-    { name: 'Sacanice', type: 'dark', category: 'especial', power: 72 },
-    { name: 'Golpe na Virilha', type: 'dark', category: 'fisico', power: 78 },
-    { name: 'Estocada Traiçoeira', type: 'dark', category: 'fisico', power: 85 },
-    { name: 'Truque Sujo', type: 'dark', category: 'especial', power: 90 },
-    { name: 'Vale Tudo', type: 'dark', category: 'especial', power: 100 },
-    { name: 'Provocação Safada', type: 'dark', category: 'estatuto', power: 0 },
-  ],
-  steel: [
-    { name: 'Garras de Metal', type: 'steel', category: 'fisico', power: 55 },
-    { name: 'Vibração Magnética', type: 'steel', category: 'especial', power: 70 },
-    { name: 'Cabeçada Dura', type: 'steel', category: 'fisico', power: 82 },
-    { name: 'Vara de Aço', type: 'steel', category: 'fisico', power: 92 },
-    { name: 'Canhão de Metal', type: 'steel', category: 'especial', power: 95 },
-    { name: 'Ereção de Aço', type: 'steel', category: 'estatuto', power: 0 },
-    { name: 'Pau Duro', type: 'steel', category: 'estatuto', power: 0 },
-  ],
-  fairy: [
-    { name: 'Voz Manhosa', type: 'fairy', category: 'especial', power: 55 },
-    { name: 'Beijo Doce', type: 'fairy', category: 'especial', power: 65 },
-    { name: 'Varinha Mágica', type: 'fairy', category: 'especial', power: 78 },
-    { name: 'Brilho Molhado', type: 'fairy', category: 'especial', power: 88 },
-    { name: 'Flechada do Amor', type: 'fairy', category: 'especial', power: 95 },
-    { name: 'Pó de Fada Afrodisíaco', type: 'fairy', category: 'estatuto', power: 0 },
-    { name: 'Strip Sedutor', type: 'fairy', category: 'estatuto', power: 0 },
-  ],
+/** Um ataque por tipo — o golpe-assinatura do tipo. Cada porca tem 1 tipo, por
+ *  isso é este o seu ataque de tipo; as características (traits) juntam extras. */
+const TYPE_MOVEPOOLS: Record<string, Move> = {
+  normal: { name: 'Cavalgada Descontrolada', type: 'normal', category: 'fisico', power: 95 },
+  fire: { name: 'Rabo em Chamas', type: 'fire', category: 'fisico', power: 85 },
+  water: { name: 'Tsunami de Leitinho', type: 'water', category: 'especial', power: 100 },
+  electric: { name: 'Vibração Máxima', type: 'electric', category: 'especial', power: 90 },
+  grass: { name: 'Selva Molhada', type: 'grass', category: 'especial', power: 90 },
+  ice: { name: 'Cubos de Gelo Safados', type: 'ice', category: 'especial', power: 75 },
+  fighting: { name: 'Chave de Pernas', type: 'fighting', category: 'fisico', power: 95 },
+  poison: { name: 'Beijo Venenoso', type: 'poison', category: 'especial', power: 65 },
+  ground: { name: 'Sentada Devastadora', type: 'ground', category: 'fisico', power: 75 },
+  flying: { name: 'Rasante no Rabo', type: 'flying', category: 'fisico', power: 65 },
+  psychic: { name: 'Controlo Mental Safado', type: 'psychic', category: 'especial', power: 90 },
+  bug: { name: 'Zumbido no Clitóris', type: 'bug', category: 'especial', power: 70 },
+  rock: { name: 'Tijolada Bruta', type: 'rock', category: 'fisico', power: 72 },
+  ghost: { name: 'Invasão Traseira', type: 'ghost', category: 'fisico', power: 95 },
+  dragon: { name: 'Fúria do Dragão', type: 'dragon', category: 'especial', power: 60 },
+  dark: { name: 'Vale Tudo', type: 'dark', category: 'especial', power: 100 },
+  steel: { name: 'Cabeçada Dura', type: 'steel', category: 'fisico', power: 82 },
+  fairy: { name: 'Voz Manhosa', type: 'fairy', category: 'especial', power: 55 },
 }
 
-/** Ataques-assinatura: certas características desbloqueiam um golpe especial,
- *  tal como uma habilidade única. As chaves batem certo com as sugestões em
- *  `data/traits.ts`. */
 const TRAIT_MOVES: Record<string, Move> = {
   // --- Boca / línguas / broches ---
   'Olhar matador': { name: 'Olhar Devorador', type: 'psychic', category: 'estatuto', power: 0 },
@@ -520,15 +373,6 @@ const TRAIT_MOVES: Record<string, Move> = {
 /* Seleção determinística de ataques                                   */
 /* ------------------------------------------------------------------ */
 
-function hashSeed(s: string): number {
-  let h = 2166136261
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return h >>> 0
-}
-
 /** PRNG determinístico (mulberry32) — mesmo seed, mesma sequência. */
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0
@@ -538,15 +382,6 @@ function mulberry32(seed: number): () => number {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
-}
-
-function shuffle<T>(arr: T[], rnd: () => number): T[] {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(rnd() * (i + 1))
-    ;[a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
 }
 
 /** Dados mínimos para construir um lutador (serve Person e PublicPerson). */
@@ -559,18 +394,14 @@ export type FighterSource = {
   battle: BattleData
 }
 
-/** Os 4 ataques da pessoa: até 2 assinaturas das características, o resto do
- *  movepool do(s) tipo(s), com prioridade ao tipo primário. Determinístico
- *  (estável entre recargas) mas único por pessoa. */
+/** Ataques da pessoa: o ataque do seu tipo único mais as assinaturas das
+ *  características (traits), até 4 no total. Determinístico e estável. */
 export function personMoves(person: {
   id: string
   number: number
   traits: string[]
   types: string[]
 }): Move[] {
-  const seed = hashSeed(person.id || `n${person.number}`)
-  const rnd = mulberry32(seed)
-
   const chosen: Move[] = []
   const seen = new Set<string>()
   const add = (m: Move | undefined) => {
@@ -580,26 +411,17 @@ export function personMoves(person: {
     }
   }
 
-  const traitMoves = person.traits
-    .map((t) => TRAIT_MOVES[t])
-    .filter((m): m is Move => Boolean(m))
+  // 1. O ataque do tipo único da porca.
+  const type = person.types[0] ?? 'normal'
+  add(TYPE_MOVEPOOLS[type])
 
-  // 1. Até 2 ataques-assinatura das características.
-  traitMoves.slice(0, 2).forEach(add)
+  // 2. Ataques-assinatura das características.
+  person.traits.forEach((t) => add(TRAIT_MOVES[t]))
 
-  // 2. Preencher com o movepool do tipo (primário primeiro, depois secundário).
-  const types = person.types.length ? person.types : ['normal']
-  const primary = shuffle(TYPE_MOVEPOOLS[types[0]] ?? [], rnd)
-  const secondary = types[1] ? shuffle(TYPE_MOVEPOOLS[types[1]] ?? [], rnd) : []
-  ;[...primary, ...secondary].forEach(add)
+  // 3. Rede de segurança: garante pelo menos o ataque Normal.
+  add(TYPE_MOVEPOOLS.normal)
 
-  // 3. Restantes assinaturas, se ainda houver espaço.
-  traitMoves.slice(2).forEach(add)
-
-  // 4. Rede de segurança: ataques Normais.
-  shuffle(TYPE_MOVEPOOLS.normal, rnd).forEach(add)
-
-  return chosen.slice(0, 4)
+  return chosen
 }
 
 /* ------------------------------------------------------------------ */

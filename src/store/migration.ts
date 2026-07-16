@@ -14,7 +14,7 @@ const migratedKey = (userId: string) => `porcadex.migrated.${userId}`
 function normalize(raw: Partial<Person>): Person {
   return {
     ...(raw as Person),
-    types: Array.isArray(raw.types) && raw.types.length ? raw.types : ['normal'],
+    types: Array.isArray(raw.types) && raw.types.length ? raw.types.slice(0, 1) : ['normal'],
     ball: raw.ball ?? 'poke',
     legendary: raw.legendary ?? false,
     legendaryCats: Array.isArray(raw.legendaryCats) ? raw.legendaryCats : [],

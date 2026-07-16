@@ -62,14 +62,9 @@ export function EditScreen() {
   const setStat = (key: StatKey, value: number) =>
     setDraft((d) => ({ ...d, stats: { ...d.stats, [key]: value } }))
 
+  // Um tipo por porca: escolher um tipo substitui o anterior.
   const toggleType = (key: string) =>
-    setDraft((d) => {
-      if (d.types.includes(key)) {
-        return { ...d, types: d.types.filter((t) => t !== key) }
-      }
-      if (d.types.length < 2) return { ...d, types: [...d.types, key] }
-      return { ...d, types: [d.types[0], key] } // replace secondary
-    })
+    setDraft((d) => ({ ...d, types: [key] }))
 
   const toggleCat = (key: string) =>
     setDraft((d) => ({
@@ -292,11 +287,10 @@ export function EditScreen() {
 
         {/* Pokémon types */}
         <div className="field">
-          <label>Tipo(s) — escolhe até 2</label>
+          <label>Tipo — escolhe 1</label>
           <div className="type-grid">
             {POKE_TYPES.map((t) => {
-              const idx = draft.types.indexOf(t.key)
-              const active = idx !== -1
+              const active = draft.types.includes(t.key)
               return (
                 <button
                   key={t.key}
@@ -310,7 +304,6 @@ export function EditScreen() {
                   }}
                 >
                   {t.label}
-                  {idx === 0 && <span className="type-chip__primary">1º</span>}
                 </button>
               )
             })}

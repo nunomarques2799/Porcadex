@@ -13,7 +13,7 @@ export function seedPeople(): Person[] {
       name: 'Ana Silva',
       nickname: 'Aninhas',
       relationship: 'sexo',
-      types: ['water', 'fairy'],
+      types: ['water'],
       country: '620', // Portugal
       ball: 'love',
       legendary: false,
@@ -76,7 +76,7 @@ export function seedPeople(): Person[] {
       number: 3,
       name: 'Cristina',
       relationship: 'sexo',
-      types: ['dark', 'psychic'],
+      types: ['dark'],
       country: '076', // Brazil
       ball: 'ultra',
       legendary: true,

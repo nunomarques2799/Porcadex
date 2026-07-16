@@ -8,7 +8,7 @@ function rowToPublicPerson(r: Record<string, unknown>): PublicPerson {
   const stats = { ...EMPTY_STATS, ...((r.stats as Record<string, number>) ?? {}) }
   const types =
     Array.isArray(r.types) && (r.types as string[]).length
-      ? (r.types as string[])
+      ? (r.types as string[]).slice(0, 1)
       : ['normal']
   return {
     id: String(r.id),

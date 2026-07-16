@@ -36,7 +36,8 @@ const PeopleContext = createContext<PeopleContextValue | null>(null)
 /** Map a DB row into our client-side `Person` shape. */
 function rowToPerson(r: Record<string, unknown>): Person {
   const stats = { ...EMPTY_STATS, ...((r.stats as Record<string, number>) ?? {}) }
-  const types = Array.isArray(r.types) && (r.types as string[]).length ? (r.types as string[]) : ['normal']
+  // Um tipo por porca: fica só o primário, mesmo em dados antigos com 2 tipos.
+  const types = Array.isArray(r.types) && (r.types as string[]).length ? (r.types as string[]).slice(0, 1) : ['normal']
   return {
     id: String(r.id),
     number: Number(r.number),
