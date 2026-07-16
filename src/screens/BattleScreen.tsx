@@ -56,12 +56,14 @@ type AnyPerson = Person | PublicPerson
  *  (ver `hpDrainMs` em components/BattleUI). */
 const PACE = {
   /** Quanto tempo fica cada mensagem no ecrã. */
-  say: 1250,
+  say: 1400,
   intro: 1050,
   /** Espera até ao momento do impacto da investida antes de aplicar o dano. */
   impact: 240,
   /** Respiro depois de a barra assentar. */
-  settle: 500,
+  settle: 650,
+  /** Pausa dramática entre o ataque de um e o contra-ataque do outro. */
+  between: 900,
   faint: 1350,
 }
 
@@ -332,9 +334,16 @@ export function BattleScreen() {
     const aFirst = fa.spe > fb.spe || (fa.spe === fb.spe && Math.random() < 0.5)
     const order: ('a' | 'b')[] = aFirst ? ['a', 'b'] : ['b', 'a']
 
-    for (const who of order) {
+    for (let i = 0; i < order.length; i++) {
+      const who = order[i]
       const act = who === 'a' ? myAct : foeAct.current
       if (act.kind !== 'move') continue
+      // Respiro dramático antes do contra-ataque — só se ambos continuam de pé
+      // (se o 1º golpe já derrubou alguém, não há segundo ataque a esperar).
+      if (i > 0 && isAlive(activeOf(A)) && isAlive(activeOf(B))) {
+        await sleep(PACE.between)
+        if (runId.current !== my) return
+      }
       if (!(await strike(who, my))) return
     }
 
